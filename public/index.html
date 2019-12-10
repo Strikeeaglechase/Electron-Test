@@ -18,23 +18,25 @@
 	<link rel="stylesheet" href="assets/theme/css/style.css">
 	<link rel="preload" as="style" href="assets/mobirise/css/mbr-additional.css">
 	<link rel="stylesheet" href="assets/mobirise/css/mbr-additional.css" type="text/css">
+	<!-- P5 and game code -->
+	<script type="text/javascript" src="https://cdn.socket.io/socket.io-1.4.5.js"></script>
+	<script type="text/javascript" src="https://cdn.jsdelivr.net/npm/p5@0.10.2/lib/p5.min.js"></script>
+	<script type="text/javascript" src="main.js"></script>
+	<style>
+		body {
+			padding: 0;
+			margin: 0;
+			overflow: hidden;
+		}
+	</style>
 	<script>
-		Element.prototype.remove = function() {
-			this.parentElement.removeChild(this);
-		}
-		NodeList.prototype.remove = HTMLCollection.prototype.remove = function() {
-			for (var i = this.length - 1; i >= 0; i--) {
-				if (this[i] && this[i].parentElement) {
-					this[i].parentElement.removeChild(this[i]);
-				}
-			}
-		}
-
 		function startClicked() {
 			var name = document.getElementById('name_input');
 			if (!name.value) {
 				name.placeholder = 'Please enter a name';
 				name.style.borderColor = 'red';
+			} else {
+				startGame();
 			}
 			// document.getElementById('start_button').remove();
 		}
