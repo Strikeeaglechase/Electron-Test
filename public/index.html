@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<!-- Site made with Mobirise Website Builder v4.11.6, https://mobirise.com -->
+	<meta charset="UTF-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<meta name="generator" content="Mobirise v4.11.6, mobirise.com">
+	<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+	<link rel="shortcut icon" href="assets/images/logo4.png" type="image/x-icon">
+	<meta name="description" content="">
+	<title>Home</title>
+	<link rel="stylesheet" href="assets/web/assets/mobirise-icons/mobirise-icons.css">
+	<link rel="stylesheet" href="assets/bootstrap/css/bootstrap.min.css">
+	<link rel="stylesheet" href="assets/bootstrap/css/bootstrap-grid.min.css">
+	<link rel="stylesheet" href="assets/bootstrap/css/bootstrap-reboot.min.css">
+	<link rel="stylesheet" href="assets/tether/tether.min.css">
+	<link rel="stylesheet" href="assets/theme/css/style.css">
+	<link rel="preload" as="style" href="assets/mobirise/css/mbr-additional.css">
+	<link rel="stylesheet" href="assets/mobirise/css/mbr-additional.css" type="text/css">
+	<script>
+		Element.prototype.remove = function() {
+			this.parentElement.removeChild(this);
+		}
+		NodeList.prototype.remove = HTMLCollection.prototype.remove = function() {
+			for (var i = this.length - 1; i >= 0; i--) {
+				if (this[i] && this[i].parentElement) {
+					this[i].parentElement.removeChild(this[i]);
+				}
+			}
+		}
+
+		function startClicked() {
+			var name = document.getElementById('name_input');
+			if (!name.value) {
+				name.placeholder = 'Please enter a name';
+				name.style.borderColor = 'red';
+			}
+			// document.getElementById('start_button').remove();
+		}
+	</script>
+</head>
+
+<body>
+	<section class="header5 cid-rKgiZ6SnpK mbr-fullscreen" id="main_doc">
+		<div class="container">
+			<div class="row justify-content-center">
+				<div class="mbr-white col-md-10">
+					<h1 class="mbr-section-title align-center pb-3 mbr-fonts-style display-1">Electron Test Game</h1>
+					<p class="mbr-text align-center display-5 pb-3 mbr-fonts-style">This is a one life 1v1 top down shooter game. <br>Use WASD to move around and click to shoot.<br>GLHF</p>
+					<div class="mbr-form form-with-styler">
+						<div class="dragArea row">
+							<div class="col-md-12 form-group " data-for="name">
+								<input type="text" style="width: 250px; margin: auto;" maxlength="16" name="name" placeholder="Username" data-form-field="Name" required="required" class="form-control px-3 display-7" id="name_input">
+							</div>
+						</div>
+					</div>
+					<div class="mbr-section-btn align-center" id="start_button"><a class="btn btn-md btn-warning display-4" href="javascript:void(0);" onclick="startClicked();">Start</a></div>
+				</div>
+			</div>
+		</div>
+	</section>
+	<script src="assets/web/assets/jquery/jquery.min.js"></script>
+	<script src="assets/popper/popper.min.js"></script>
+	<script src="assets/bootstrap/js/bootstrap.min.js"></script>
+	<script src="assets/tether/tether.min.js"></script>
+	<script src="assets/smoothscroll/smooth-scroll.js"></script>
+	<script src="assets/theme/js/script.js"></script>
+</body>
+
+</html>

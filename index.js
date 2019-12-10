@@ -12,7 +12,7 @@ function createWindow() {
 			nodeIntegration: true
 		}
 	})
-	win.loadFile('index.html')
+	win.loadFile('public/index.html')
 }
 
 app.on('ready', createWindow)

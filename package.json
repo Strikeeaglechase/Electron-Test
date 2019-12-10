@@ -3,7 +3,9 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
-  "dependencies": {},
+  "dependencies": {
+    "socket.io": "^2.3.0"
+  },
   "devDependencies": {
     "electron": "7.1.3"
   },
