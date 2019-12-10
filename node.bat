@@ -1,1 +1,0 @@
-C:\users\%username%\Desktop\node\node.exe %1 %2 %3
