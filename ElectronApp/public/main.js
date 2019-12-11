@@ -71,21 +71,38 @@ function Game() {
 	this.id;
 	this.player;
 	this.ready = false;
+	this.userCount = 0;
+	this.state = 'none';
+	this.userCountMsg = undefined;
 	this.init = async function() {
-		this.socket = io.connect(getURL().substring(7, getURL().length - 1))
-		await this.initConnection(socket);
-		this.id = socket.id;
+		this.socket = io.connect('http://localhost:8000')
+		await this.initConnection(this.socket);
+		this.id = this.socket.id;
 		this.player = new Player(this);
 		this.ready = true;
+		this.state = 'waiting';
 	}
 	this.initConnection = function(socket) {
 		return new Promise(function(resolve, reject) {
 			socket.on('connect', () => {
-				resolve();
-				socket.on('event', data => {});
+				socket.on('user_count', data => {
+					this.userCount = data;
+				});
 				socket.emit('enter_pool');
+				setInterval(() => {
+					this.socket.emit('get_user_count');
+				}, 1000);
+				resolve();
 			});
 		});
+	}
+	this.run = function() {
+		if (this.state == 'waiting') {
+			if (!this.userCountMsg) {
+				this.userCountMsg = textOverlay('Current users: ' + this.userCount);
+			}
+			this.userCountMsg = 'Current users: ' + this.userCount;
+		}
 	}
 }
 
@@ -99,10 +116,12 @@ function startGame() {
 		div.className = 'overlay';
 		div.style.top = -(canvas.height - 25) + 'px';
 		document.body.appendChild(div);
+		game = new Game();
+		game.init();
 	}
 }
 
-function testOverlay(text) {
+function textOverlay(text) {
 	var elm = document.createElement('h1');
 	elm.innerText = text;
 	$('.overlay')[0].appendChild(elm);
@@ -116,6 +135,9 @@ function setup() {
 function draw() {
 	background(51);
 	// console.log($);
+	if (this.game && this.game.ready) {
+		this.game.run();
+	}
 }
 
 function keyPressed() {
