@@ -3,6 +3,7 @@ const PLAYER_SPEED = 5;
 var keys = [];
 var p5Ready = false;
 var game;
+var canvas;
 
 Element.prototype.remove = function() {
 	this.parentElement.removeChild(this);
@@ -93,8 +94,19 @@ function startGame() {
 		return;
 	} else {
 		document.getElementById('main_doc').remove();
-		createCanvas(windowWidth, windowHeight);
+		canvas = createCanvas(windowWidth, windowHeight);
+		var div = document.createElement('div');
+		div.className = 'overlay';
+		div.style.top = -(canvas.height - 25) + 'px';
+		document.body.appendChild(div);
 	}
+}
+
+function testOverlay(text) {
+	var elm = document.createElement('h1');
+	elm.innerText = text;
+	$('.overlay')[0].appendChild(elm);
+	return elm;
 }
 
 function setup() {
@@ -103,6 +115,7 @@ function setup() {
 
 function draw() {
 	background(51);
+	// console.log($);
 }
 
 function keyPressed() {

@@ -11,6 +11,10 @@ function initServer(ip, port) {
 }
 
 function initSocketIO() {
-	io.sockets.on('connection', function(socket) {});
+	io.sockets.on('connection', function(socket) {
+		socket.on('', data => {
+
+		});
+	});
 }
 initServer('167.71.181.0', 8000);
