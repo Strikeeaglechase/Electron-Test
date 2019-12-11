@@ -34,6 +34,9 @@ function Player(game) {
 	this.draw = function() {
 		noStroke();
 		fill(150);
+		if (!this.pos) {
+			return;
+		}
 		ellipse(this.pos.x, this.pos.y, PLAYER_SIZE, PLAYER_SIZE);
 	}
 	this.handleKeys = function() {
@@ -74,6 +77,7 @@ function Game(username) {
 	this.socket;
 	this.id;
 	this.player;
+	this.opponent;
 	this.ready = false;
 	this.userCount = 0;
 	this.state = 'none';
@@ -99,6 +103,17 @@ function Game(username) {
 			this.userCountMsg = undefined;
 			textOverlay('Fighting: ' + data, true);
 		});
+		socket.on('other_disconnected', () => {
+			this.state = 'waiting';
+			socket.emit('enter_pool', this.username);
+			textOverlay('Your opponent disconnected', true);
+			this.opponent = {};
+		});
+		socket.on('game_data', data => {
+			if (data.type == 'player_info') {
+				this.opponent = data.player;
+			}
+		});
 		setInterval(() => {
 			socket.emit('get_user_count');
 		}, 1000);
@@ -118,7 +133,13 @@ function Game(username) {
 				break;
 			case 'playing':
 				this.player.run();
-				socket.emit('')
+				this.socket.emit('game_data', {
+					type: 'player_info',
+					player: this.player.getData()
+				});
+				if (this.opponent) {
+					this.player.draw.call(this.opponent);
+				}
 				break;
 		}
 	}

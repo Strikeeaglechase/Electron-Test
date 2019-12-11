@@ -26,6 +26,14 @@ function initSocketIO() {
 			players[socket.id].state = 'waiting';
 			players[socket.id].name = data;
 		});
+		socket.on('game_data', data => {
+			var p = players[socket.id];
+			if (p.other && p.other.conn.connected) {
+				p.other.conn.emit('game_data', data);
+			} else {
+				socket.emit('other_disconnected');
+			}
+		});
 		socket.on('get_user_count', () => {
 			socket.emit('user_count', len(players));
 		});
