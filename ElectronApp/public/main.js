@@ -1,5 +1,7 @@
 const PLAYER_SIZE = 15;
 const PLAYER_SPEED = 5;
+const TEXT_FADE_AFTER = 1000;
+const TEXT_FADE_SPEED = 500;
 var keys = [];
 var p5Ready = false;
 var game;
@@ -17,7 +19,7 @@ NodeList.prototype.remove = HTMLCollection.prototype.remove = function() {
 }
 
 function k(letter) {
-	return keys[letter.charCodeAt(0)];
+	return keys[letter.toUpperCase().charCodeAt(0)];
 }
 
 function Player(game) {
@@ -26,6 +28,8 @@ function Player(game) {
 	this.vel = new p5.Vector(0, 0);
 	this.run = function() {
 		this.draw();
+		this.handleKeys();
+		this.pos.add(this.vel);
 	}
 	this.draw = function() {
 		noStroke();
@@ -48,7 +52,7 @@ function Player(game) {
 			this.vel.x = 0;
 		}
 		if (this.vel.x && this.vel.y) {
-			this.vel.mult(0.5);
+			this.vel.mult(0.8);
 		}
 	}
 	this.getData = function() {
@@ -66,7 +70,7 @@ function Player(game) {
 	}
 }
 
-function Game() {
+function Game(username) {
 	this.socket;
 	this.id;
 	this.player;
@@ -74,39 +78,53 @@ function Game() {
 	this.userCount = 0;
 	this.state = 'none';
 	this.userCountMsg = undefined;
+	this.username = username;
 	this.init = async function() {
 		this.socket = io.connect('http://localhost:8000')
-		await this.initConnection(this.socket);
+		await this.waitForConnection(this.socket);
+		this.setupConnection(this.socket);
 		this.id = this.socket.id;
 		this.player = new Player(this);
 		this.ready = true;
 		this.state = 'waiting';
 	}
-	this.initConnection = function(socket) {
+	this.setupConnection = function(socket) {
+		socket.emit('enter_pool', this.username);
+		socket.on('user_count', data => {
+			this.userCount = data;
+		});
+		socket.on('start', data => {
+			this.state = 'playing';
+			this.userCountMsg.remove();
+			this.userCountMsg = undefined;
+			textOverlay('Fighting: ' + data, true);
+		});
+		setInterval(() => {
+			socket.emit('get_user_count');
+		}, 1000);
+	}
+	this.waitForConnection = function(socket) {
 		return new Promise(function(resolve, reject) {
-			socket.on('connect', () => {
-				socket.on('user_count', data => {
-					this.userCount = data;
-				});
-				socket.emit('enter_pool');
-				setInterval(() => {
-					this.socket.emit('get_user_count');
-				}, 1000);
-				resolve();
-			});
+			socket.on('connect', resolve);
 		});
 	}
 	this.run = function() {
-		if (this.state == 'waiting') {
-			if (!this.userCountMsg) {
-				this.userCountMsg = textOverlay('Current users: ' + this.userCount);
-			}
-			this.userCountMsg = 'Current users: ' + this.userCount;
+		switch (this.state) {
+			case 'waiting':
+				if (!this.userCountMsg) {
+					this.userCountMsg = textOverlay('Current users: ' + this.userCount);
+				}
+				this.userCountMsg.innerText = 'Waiting for opponent\nCurrent users: ' + this.userCount;
+				break;
+			case 'playing':
+				this.player.run();
+				socket.emit('')
+				break;
 		}
 	}
 }
 
-function startGame() {
+function startGame(name) {
 	if (!p5Ready) {
 		return;
 	} else {
@@ -116,15 +134,26 @@ function startGame() {
 		div.className = 'overlay';
 		div.style.top = -(canvas.height - 25) + 'px';
 		document.body.appendChild(div);
-		game = new Game();
+		game = new Game(name);
 		game.init();
 	}
 }
 
-function textOverlay(text) {
-	var elm = document.createElement('h1');
+function fadeElm(elm) {
+	$(elm).animate({
+		opacity: 0,
+		top: "-=20px"
+	}, TEXT_FADE_SPEED, "linear", () => elm.remove());
+}
+
+function textOverlay(text, doFade) {
+	var elm = document.createElement('h2');
 	elm.innerText = text;
+	elm.style.position = 'relative'
 	$('.overlay')[0].appendChild(elm);
+	if (doFade) {
+		setTimeout(fadeElm.bind(null, elm), TEXT_FADE_AFTER);
+	}
 	return elm;
 }
 
@@ -134,7 +163,6 @@ function setup() {
 
 function draw() {
 	background(51);
-	// console.log($);
 	if (this.game && this.game.ready) {
 		this.game.run();
 	}
