@@ -2,11 +2,10 @@ const PLAYER_SIZE = 15;
 const PLAYER_SPEED = 5;
 const TEXT_FADE_AFTER = 1000;
 const TEXT_FADE_SPEED = 500;
-const SERVER = 'http://ssm3.us:8000';
+const SERVER = 'localhost';
 var keys = [];
-var p5Ready = false;
 var game;
-var canvas;
+var scene, camera, renderer;
 
 Element.prototype.remove = function() {
 	this.parentElement.removeChild(this);
@@ -27,6 +26,9 @@ function Player(game) {
 	this.game = game;
 	this.pos = new p5.Vector(50, 50);
 	this.vel = new p5.Vector(0, 0);
+	this.ellipse = two.makeCircle(this.pos.x, this.pos.y, PLAYER_SIZE);
+	this.ellipse.noStroke();
+	this.ellipse.fill = color(150);
 	this.run = function() {
 		this.draw();
 		this.handleKeys();
@@ -38,7 +40,6 @@ function Player(game) {
 		if (!this.pos) {
 			return;
 		}
-		ellipse(this.pos.x, this.pos.y, PLAYER_SIZE, PLAYER_SIZE);
 	}
 	this.handleKeys = function() {
 		if (k('w')) {
@@ -147,18 +148,29 @@ function Game(username) {
 }
 
 function startGame(name) {
-	if (!p5Ready) {
-		return;
-	} else {
-		document.getElementById('main_doc').remove();
-		canvas = createCanvas(windowWidth, windowHeight);
-		var div = document.createElement('div');
-		div.className = 'overlay';
-		div.style.top = -(canvas.height - 25) + 'px';
-		document.body.appendChild(div);
-		game = new Game(name);
-		game.init();
-	}
+	document.getElementById('main_doc').remove();
+	scene = new THREE.Scene();
+	camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+	renderer = new THREE.WebGLRenderer();
+	renderer.setSize(window.innerWidth, window.innerHeight);
+	document.body.appendChild(renderer.domElement);
+
+	// var geometry = new THREE.BoxGeometry(1, 1, 1);
+	// var material = new THREE.MeshBasicMaterial({
+	// 	color: 0x00ff00
+	// });
+	// cube = new THREE.Mesh(geometry, material);
+	// scene.add(cube);
+
+	camera.position.z = 5;
+
+	var div = document.createElement('div');
+	div.className = 'overlay';
+	div.style.top = -(window.innerHeight - 25) + 'px';
+	document.body.appendChild(div);
+	// game = new Game(name);
+	// game.init();
+	animate();
 }
 
 function fadeElm(elm) {
@@ -179,10 +191,6 @@ function textOverlay(text, doFade) {
 	return elm;
 }
 
-function setup() {
-	p5Ready = true;
-}
-
 function draw() {
 	background(51);
 	if (this.game && this.game.ready) {
@@ -190,14 +198,17 @@ function draw() {
 	}
 }
 
-function keyPressed() {
-	keys[keyCode] = true;
+function animate() {
+	requestAnimationFrame(animate);
+	renderer.render(scene, camera);
+	cube.rotation.x += 0.01;
+	cube.rotation.y += 0.01;
 }
 
-function keyReleased() {
-	keys[keyCode] = false;
-}
-
-function windowResized() {
-	resizeCanvas(windowWidth, windowHeight);
-}
+// function keyPressed() {
+// 	keys[keyCode] = true;
+// }
+//
+// function keyReleased() {
+// 	keys[keyCode] = false;
+// }
