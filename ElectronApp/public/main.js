@@ -2,6 +2,7 @@ const PLAYER_SIZE = 15;
 const PLAYER_SPEED = 5;
 const TEXT_FADE_AFTER = 1000;
 const TEXT_FADE_SPEED = 500;
+const SERVER = 'http://ssm3.us:8000';
 var keys = [];
 var p5Ready = false;
 var game;
@@ -84,7 +85,7 @@ function Game(username) {
 	this.userCountMsg = undefined;
 	this.username = username;
 	this.init = async function() {
-		this.socket = io.connect('http://localhost:8000')
+		this.socket = io.connect(SERVER);
 		await this.waitForConnection(this.socket);
 		this.setupConnection(this.socket);
 		this.id = this.socket.id;
