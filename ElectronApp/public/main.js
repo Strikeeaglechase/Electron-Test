@@ -6,11 +6,17 @@ const SERVER = 'localhost';
 const MAP_CUBE_SIZE = 1;
 const MAP_WIDTH = map[0].length * MAP_CUBE_SIZE;
 const MAP_HEIGHT = map.length * MAP_CUBE_SIZE;
-var MOUSE_SENS = 0.001;
+var MOUSE_SENS = 0.002;
+const SIM_STEP = 1;
+const SPEED = 0.1;
+const CTRL_ROT_OFFSET = -Math.PI / 2;
+const GRAV = -0.01;
+const JUMP_FORCE = 1;
 var keys = [];
 var game;
 var scene, camera, renderer, light, ambiantLight, floor, tempBox;
 var collisionMeshList = [];
+var colliders = {};
 var mouseX = 0;
 var mouseY = 0;
 var lastMouseX = 0;
@@ -157,7 +163,7 @@ function Game(username) {
 }
 
 function loadMap(map) {
-	var geometry = new THREE.BoxGeometry(1, 1, 1);
+	var geometry = new THREE.BoxGeometry(MAP_CUBE_SIZE, MAP_CUBE_SIZE * 1.5, MAP_CUBE_SIZE);
 	var material = new THREE.MeshLambertMaterial({
 		color: 0x515151
 	});
@@ -189,7 +195,7 @@ function checkColl(mesh, meshList, ignoredUUID) {
 		var ray = new THREE.Raycaster(originPoint, directionVector.clone().normalize());
 		var collisionResults = ray.intersectObjects(meshList);
 		if (collisionResults.length > 0 && collisionResults[0].distance < directionVector.length()) {
-			return true;
+			return collisionResults;
 		}
 	}
 	return false;
@@ -224,6 +230,7 @@ function startGame(name) {
 	renderer = new THREE.WebGLRenderer();
 	renderer.setSize(window.innerWidth, window.innerHeight);
 	document.body.appendChild(renderer.domElement);
+	// scene.fog = new THREE.Fog(0xffffff, 1, 25);
 	loadMap(map);
 	camera.position.set(0, 5, 15);
 	initMouseHook();
@@ -242,21 +249,23 @@ function startGame(name) {
 	floor.rotation.x = -Math.PI / 2;
 	floor.position.set(MAP_WIDTH / 2 - MAP_CUBE_SIZE / 2, -MAP_CUBE_SIZE / 2, MAP_HEIGHT / 2 - MAP_CUBE_SIZE / 2);
 	floor.receivesShadow = true;
+	floor.name = 'floor';
 	light = new THREE.PointLight(0xffffff, 1, 0);
 	light.position.set(MAP_WIDTH / 2, 3.5, MAP_HEIGHT / 2);
 	light.castShadow = true;
 	ambiantLight = new THREE.AmbientLight(0xffffff, 0.2);
 
-	var geometry = new THREE.BoxGeometry(1, 1, 1);
+	// var geometry = new THREE.BoxGeometry(1, 1, 1);
+	var geometry = new THREE.CylinderGeometry(0.4, 0.4, 1.5, 10);
 	var material = new THREE.MeshLambertMaterial({
 		color: 0x515151
 	});
 	tempBox = new THREE.Mesh(geometry, material);
-	tempBox.position.set(MAP_WIDTH / 2, 3.5, MAP_HEIGHT / 2);
+	tempBox.position.set(MAP_WIDTH / 2, 2, MAP_HEIGHT / 2);
 	tempBox.castShadow = true;
 	tempBox.receivesShadow = true;
 	tempBox.velocity = new THREE.Vector3(0, 0, 0);
-
+	tempBox.lastPos = tempBox.position.clone();
 	collisionMeshList.push(tempBox, floor);
 	scene.add(tempBox);
 	scene.add(light, floor, ambiantLight);
@@ -282,35 +291,64 @@ function textOverlay(text, doFade) {
 	return elm;
 }
 
-var predictFactor = 1;
-
 function handleMotion(mesh) {
-	var xClone = mesh.clone();
-	xClone.position.x += mesh.velocity.x;
-	if (checkColl(xClone, collisionMeshList, [mesh.uuid])) {
-		mesh.velocity.x = 0;
+	if (mesh.velocity.length == 0) {
+		return;
 	}
-	var yClone = mesh.clone();
-	xClone.position.y += mesh.velocity.y;
-	if (checkColl(yClone, collisionMeshList, [mesh.uuid])) {
-		mesh.velocity.y = 0;
+	var tempRot = mesh.rotation.clone();
+	mesh.rotation.set(0, 0, 0);
+	mesh.updateMatrix();
+	if (checkColl(mesh, collisionMeshList)) {
+		console.log('Revert to pre-move');
+		mesh.position.x = mesh.lastPos.x;
+		mesh.position.y = mesh.lastPos.y;
+		mesh.position.z = mesh.lastPos.z;
+	} else {
+		mesh.lastPos = mesh.position.clone();
 	}
-	var zClone = mesh.clone();
-	zClone.position.z += mesh.velocity.z;
-	if (checkColl(zClone, collisionMeshList, [mesh.uuid])) {
-		mesh.velocity.z = 0;
+	mesh.updateMatrix();
+	mesh.rotation.set(tempRot.x, tempRot.y, tempRot.z);
+	var collider = colliders[mesh.uuid];
+	if (!collider) {
+		var material = mesh.material.clone();
+		material.wireframe = true;
+		material.color.set(0x00ff00);
+		var geometry = mesh.geometry.clone();
+		collider = {
+			x: new THREE.Mesh(geometry, material),
+			y: new THREE.Mesh(geometry, material),
+			z: new THREE.Mesh(geometry, material)
+		}
+		scene.add(collider.x, collider.y, collider.z);
+		colliders[mesh.uuid] = collider;
 	}
-
-	mesh.position.add(mesh.velocity);
+	var ret = '';
+	for (var i = 0; i < SIM_STEP; i++) {
+		var vel = mesh.velocity.clone().multiplyScalar(1 / SIM_STEP);
+		for (var axis in collider) {
+			var clone = collider[axis];
+			clone.position.set(mesh.position.x, mesh.position.y, mesh.position.z);
+			clone.position[axis] += vel[axis] * 2.1;
+			var col = checkColl(clone, collisionMeshList, [mesh.uuid]);
+			if (col) {
+				vel[axis] = 0;
+				// console.log(col.map(f => f.faceIndex));
+				if (col[0].object.name) {
+					ret = col.name;
+				}
+			}
+		}
+		mesh.position.add(vel);
+	}
+	return ret;
 }
 
-const SPEED = 0.1;
-var CTRL_ROT_OFFSET = -Math.PI / 2;
+var camRot = 0;
 
 function animate() {
 	requestAnimationFrame(animate);
 	tempBox.rotation.y += (lastMouseX - mouseX) * MOUSE_SENS;
-	// camera.rotation.x += (lastMouseY - mouseY) * MOUSE_SENS;
+	// camRot -= (lastMouseX - mouseX) * MOUSE_SENS;
 	tempBox.velocity.multiplyScalar(0);
 	if (k('w')) {
 		tempBox.velocity.z += Math.cos(tempBox.rotation.y - Math.PI / 2 + CTRL_ROT_OFFSET) * SPEED;
@@ -334,8 +372,9 @@ function animate() {
 	if (k('e')) {
 		tempBox.position.y += SPEED;
 	}
+	tempBox.velocity.y += GRAV;
 	handleMotion(tempBox);
-	camera.position.set(tempBox.position.x + Math.cos(-tempBox.rotation.y + Math.PI / 2) * 4, tempBox.position.y + 2.5, tempBox.position.z + Math.sin(-tempBox.rotation.y + Math.PI / 2) * 4);
+	camera.position.set(tempBox.position.x + Math.cos(-tempBox.rotation.y + Math.PI / 2 + camRot) * 4, tempBox.position.y + 2.5, tempBox.position.z + Math.sin(-tempBox.rotation.y + Math.PI / 2 + camRot) * 4);
 	var lookPt = tempBox.position.clone();
 	lookPt.y += 1;
 	camera.lookAt(lookPt);
@@ -353,3 +392,4 @@ function keyReleased(event) {
 }
 window.addEventListener('keydown', keyPressed);
 window.addEventListener('keyup', keyReleased);
+window.onload = startGame;
