@@ -91,6 +91,18 @@ function initMouseHook() {
 	}
 	document.addEventListener('pointerlockchange', lockChangeAlert, false);
 }
+class ColorGUIHelper {
+	constructor(object, prop) {
+		this.object = object;
+		this.prop = prop;
+	}
+	get value() {
+		return `#${this.object[this.prop].getHexString()}`;
+	}
+	set value(hexString) {
+		this.object[this.prop].set(hexString);
+	}
+}
 
 function startGame(name) {
 	document.getElementById('main_doc').remove();
@@ -122,6 +134,12 @@ function startGame(name) {
 	// light = new THREE.PointLight(0xff0000, 4, 4);
 	// light.position.set(7.5, 0.3, 1.5);
 	// light.castShadow = true;
+	// light = new THREE.Sp
+	var gui = new dat.GUI();
+	gui.addColor(new ColorGUIHelper(light, 'color'), 'value');
+	// gui.add(text, 'speed', -5, 5);
+	// gui.add(text, 'displayOutline');
+	// gui.add(text, 'explode');
 
 	ambiantLight = new THREE.AmbientLight(0xffffff, 0.4);
 
