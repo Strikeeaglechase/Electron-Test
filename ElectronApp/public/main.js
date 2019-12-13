@@ -8,7 +8,7 @@ const SIM_STEP = 1;
 
 var keys = [];
 var game;
-var scene, camera, renderer, light, ambiantLight, floor, tempBox;
+var scene, camera, renderer, ambiantLight, floor;
 var collisionMeshList = [];
 var colliders = {};
 var mouseX = 0;
@@ -103,6 +103,34 @@ class ColorGUIHelper {
 		this.object[this.prop].set(hexString);
 	}
 }
+var glower;
+
+function createLargeGlowElm(mesh) {
+	var group = new THREE.Group();
+
+	var glowMesh = new THREEx.GeometricGlowMesh(mesh);
+	test = glowMesh;
+	glowMesh.outsideMesh.material.uniforms.coeficient.value = 0.01;
+	glowMesh.outsideMesh.material.uniforms.power.value = 3;
+	glowMesh.insideMesh.material.uniforms.glowColor.value = mesh.material.color;
+	glowMesh.outsideMesh.material.uniforms.glowColor.value = mesh.material.color;
+	mesh.add(glowMesh.object3d);
+	group.add(mesh);
+
+	var light = new THREE.PointLight(mesh.material.color, 1, 4);
+	light.position.set(mesh.position.x, mesh.position.y, mesh.position.z);
+	group.add(light);
+	return group;
+}
+
+function createGlowElm(mesh) {
+	var group = new THREE.Group();
+	group.add(mesh);
+	var light = new THREE.PointLight(mesh.material.color, 1, 4);
+	light.position.set(mesh.position.x, mesh.position.y, mesh.position.z);
+	group.add(light);
+	return group;
+}
 
 function startGame(name) {
 	document.getElementById('main_doc').remove();
@@ -131,24 +159,22 @@ function startGame(name) {
 	floor.position.set(MAP_WIDTH / 2 - MAP_CUBE_SIZE / 2, -MAP_CUBE_SIZE / 2, MAP_HEIGHT / 2 - MAP_CUBE_SIZE / 2);
 	floor.receivesShadow = true;
 	floor.name = 'floor';
-	// light = new THREE.PointLight(0xff0000, 4, 4);
-	// light.position.set(7.5, 0.3, 1.5);
-	// light.castShadow = true;
-	// light = new THREE.Sp
 	var gui = new dat.GUI();
-	gui.addColor(new ColorGUIHelper(light, 'color'), 'value');
-	// gui.add(text, 'speed', -5, 5);
-	// gui.add(text, 'displayOutline');
-	// gui.add(text, 'explode');
+	var geometry = new THREE.SphereGeometry(0.01, 32, 32);
+	var material = new THREE.MeshBasicMaterial({
+		color: 0x00ff00
+	});
+	glower = createGlowElm(new THREE.Mesh(geometry, material));
+	glower.position.set(8, 0.3, 1);
+	scene.add(glower);
 
 	ambiantLight = new THREE.AmbientLight(0xffffff, 0.4);
-
 	var spotLight = new THREE.SpotLight(0xffffff, 1);
 	spotLight.position.set(MAP_WIDTH / 2, 20, MAP_HEIGHT / 2);
 	spotLight.castShadow = true;
 
 	collisionMeshList.push(floor);
-	scene.add(light, floor, ambiantLight, spotLight);
+	scene.add(floor, ambiantLight, spotLight);
 
 	animate();
 }
@@ -231,6 +257,7 @@ function animate() {
 	if (game) {
 		game.run();
 	}
+	glower.position.z += 0.01
 	renderer.render(scene, camera);
 	lastMouseX = mouseX;
 	lastMouseY = mouseY;
