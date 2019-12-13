@@ -9,9 +9,8 @@ const MAP_HEIGHT = map.length * MAP_CUBE_SIZE;
 var MOUSE_SENS = 0.001;
 var keys = [];
 var game;
-var scene, camera, renderer, light, ambiantLight;
-var mapMesh = [];
-var floor;
+var scene, camera, renderer, light, ambiantLight, floor, tempBox;
+var collisionMeshList = [];
 var mouseX = 0;
 var mouseY = 0;
 var lastMouseX = 0;
@@ -169,18 +168,24 @@ function loadMap(map) {
 				cube.position.set(j * MAP_CUBE_SIZE, 0, i * MAP_CUBE_SIZE);
 				cube.castShadow = true;
 				cube.receivesShadow = true;
+				collisionMeshList.push(cube);
 				scene.add(cube);
 			}
 		}
 	}
 }
 
-function checkColl(mesh, meshList) {
+function checkColl(mesh, meshList, ignoredUUID) {
+	var originPoint = mesh.position.clone();
+	if (ignoredUUID) {
+		meshList = meshList.filter(m => m.uuid != mesh.uuid && !ignoredUUID.some(uid => m.uuid == uid));
+	} else {
+		meshList = meshList.filter(m => m.uuid != mesh.uuid);
+	}
 	for (var vertexIndex = 0; vertexIndex < mesh.geometry.vertices.length; vertexIndex++) {
 		var localVertex = mesh.geometry.vertices[vertexIndex].clone();
 		var globalVertex = localVertex.applyMatrix4(mesh.matrix);
 		var directionVector = globalVertex.sub(mesh.position);
-
 		var ray = new THREE.Raycaster(originPoint, directionVector.clone().normalize());
 		var collisionResults = ray.intersectObjects(meshList);
 		if (collisionResults.length > 0 && collisionResults[0].distance < directionVector.length()) {
@@ -189,7 +194,6 @@ function checkColl(mesh, meshList) {
 	}
 	return false;
 }
-
 
 function initMouseHook() {
 	var canvas = renderer.domElement;
@@ -236,12 +240,25 @@ function startGame(name) {
 		})
 	);
 	floor.rotation.x = -Math.PI / 2;
-	floor.position.set(MAP_WIDTH / 2 - MAP_CUBE_SIZE / 2, 0, MAP_HEIGHT / 2 - MAP_CUBE_SIZE / 2);
+	floor.position.set(MAP_WIDTH / 2 - MAP_CUBE_SIZE / 2, -MAP_CUBE_SIZE / 2, MAP_HEIGHT / 2 - MAP_CUBE_SIZE / 2);
 	floor.receivesShadow = true;
 	light = new THREE.PointLight(0xffffff, 1, 0);
-	light.position.set(MAP_WIDTH / 2, 1.5, MAP_HEIGHT / 2);
+	light.position.set(MAP_WIDTH / 2, 3.5, MAP_HEIGHT / 2);
 	light.castShadow = true;
 	ambiantLight = new THREE.AmbientLight(0xffffff, 0.2);
+
+	var geometry = new THREE.BoxGeometry(1, 1, 1);
+	var material = new THREE.MeshLambertMaterial({
+		color: 0x515151
+	});
+	tempBox = new THREE.Mesh(geometry, material);
+	tempBox.position.set(MAP_WIDTH / 2, 3.5, MAP_HEIGHT / 2);
+	tempBox.castShadow = true;
+	tempBox.receivesShadow = true;
+	tempBox.velocity = new THREE.Vector3(0, 0, 0);
+
+	collisionMeshList.push(tempBox, floor);
+	scene.add(tempBox);
 	scene.add(light, floor, ambiantLight);
 
 	animate();
@@ -265,17 +282,63 @@ function textOverlay(text, doFade) {
 	return elm;
 }
 
-// function draw() {
-// 	background(51);
-// 	if (this.game && this.game.ready) {
-// 		this.game.run();
-// 	}
-// }
+var predictFactor = 1;
+
+function handleMotion(mesh) {
+	var xClone = mesh.clone();
+	xClone.position.x += mesh.velocity.x;
+	if (checkColl(xClone, collisionMeshList, [mesh.uuid])) {
+		mesh.velocity.x = 0;
+	}
+	var yClone = mesh.clone();
+	xClone.position.y += mesh.velocity.y;
+	if (checkColl(yClone, collisionMeshList, [mesh.uuid])) {
+		mesh.velocity.y = 0;
+	}
+	var zClone = mesh.clone();
+	zClone.position.z += mesh.velocity.z;
+	if (checkColl(zClone, collisionMeshList, [mesh.uuid])) {
+		mesh.velocity.z = 0;
+	}
+
+	mesh.position.add(mesh.velocity);
+}
+
+const SPEED = 0.1;
+var CTRL_ROT_OFFSET = -Math.PI / 2;
 
 function animate() {
 	requestAnimationFrame(animate);
-	camera.rotation.y += (lastMouseX - mouseX) * MOUSE_SENS;
+	tempBox.rotation.y += (lastMouseX - mouseX) * MOUSE_SENS;
 	// camera.rotation.x += (lastMouseY - mouseY) * MOUSE_SENS;
+	tempBox.velocity.multiplyScalar(0);
+	if (k('w')) {
+		tempBox.velocity.z += Math.cos(tempBox.rotation.y - Math.PI / 2 + CTRL_ROT_OFFSET) * SPEED;
+		tempBox.velocity.x += Math.sin(tempBox.rotation.y - Math.PI / 2 + CTRL_ROT_OFFSET) * SPEED;
+	}
+	if (k('s')) {
+		tempBox.velocity.z += Math.cos(tempBox.rotation.y + Math.PI / 2 + CTRL_ROT_OFFSET) * SPEED;
+		tempBox.velocity.x += Math.sin(tempBox.rotation.y + Math.PI / 2 + CTRL_ROT_OFFSET) * SPEED;
+	}
+	if (k('a')) {
+		tempBox.velocity.z += Math.cos(tempBox.rotation.y + CTRL_ROT_OFFSET) * SPEED;
+		tempBox.velocity.x += Math.sin(tempBox.rotation.y + CTRL_ROT_OFFSET) * SPEED;
+	}
+	if (k('d')) {
+		tempBox.velocity.z += Math.cos(tempBox.rotation.y - CTRL_ROT_OFFSET) * SPEED;
+		tempBox.velocity.x += Math.sin(tempBox.rotation.y - CTRL_ROT_OFFSET) * SPEED;
+	}
+	if (k('q')) {
+		tempBox.position.y -= SPEED;
+	}
+	if (k('e')) {
+		tempBox.position.y += SPEED;
+	}
+	handleMotion(tempBox);
+	camera.position.set(tempBox.position.x + Math.cos(-tempBox.rotation.y + Math.PI / 2) * 4, tempBox.position.y + 2.5, tempBox.position.z + Math.sin(-tempBox.rotation.y + Math.PI / 2) * 4);
+	var lookPt = tempBox.position.clone();
+	lookPt.y += 1;
+	camera.lookAt(lookPt);
 	renderer.render(scene, camera);
 	lastMouseX = mouseX;
 	lastMouseY = mouseY;
