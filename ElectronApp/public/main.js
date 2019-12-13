@@ -1,18 +1,11 @@
-const PLAYER_SIZE = 0.4;
-const PLAYER_HEIGHT = 1.5
-const PLAYER_SPEED = 5;
 const TEXT_FADE_AFTER = 1000;
 const TEXT_FADE_SPEED = 500;
 const SERVER = 'localhost';
 const MAP_CUBE_SIZE = 1;
 const MAP_WIDTH = map[0].length * MAP_CUBE_SIZE;
 const MAP_HEIGHT = map.length * MAP_CUBE_SIZE;
-var MOUSE_SENS = 0.002;
 const SIM_STEP = 1;
-const SPEED = 0.1;
-const CTRL_ROT_OFFSET = -Math.PI / 2;
-const GRAV = -0.01;
-const JUMP_FORCE = 1;
+
 var keys = [];
 var game;
 var scene, camera, renderer, light, ambiantLight, floor, tempBox;
@@ -114,8 +107,8 @@ function startGame(name) {
 	div.className = 'overlay';
 	div.style.top = -(window.innerHeight - 25) + 'px';
 	document.body.appendChild(div);
-	// game = new Game(name);
-	// game.init();
+	game = new Game(name);
+	game.init(camera);
 	floor = new THREE.Mesh(
 		new THREE.PlaneGeometry(MAP_WIDTH, MAP_HEIGHT),
 		new THREE.MeshBasicMaterial({
@@ -131,19 +124,7 @@ function startGame(name) {
 	light.castShadow = true;
 	ambiantLight = new THREE.AmbientLight(0xffffff, 0.2);
 
-	// var geometry = new THREE.BoxGeometry(1, 1, 1);
-	var geometry = new THREE.CylinderGeometry(0.4, 0.4, 1.5, 10);
-	var material = new THREE.MeshLambertMaterial({
-		color: 0x515151
-	});
-	tempBox = new THREE.Mesh(geometry, material);
-	tempBox.position.set(MAP_WIDTH / 2, PLAYER_HEIGHT, MAP_HEIGHT / 2);
-	tempBox.castShadow = true;
-	tempBox.receivesShadow = true;
-	tempBox.velocity = new THREE.Vector3(0, 0, 0);
-	tempBox.lastPos = tempBox.position.clone();
-	collisionMeshList.push(tempBox, floor);
-	scene.add(tempBox);
+	collisionMeshList.push(floor);
 	scene.add(light, floor, ambiantLight);
 
 	animate();
@@ -223,37 +204,9 @@ var camRot = 0;
 
 function animate() {
 	requestAnimationFrame(animate);
-	tempBox.rotation.y += (lastMouseX - mouseX) * MOUSE_SENS;
-	// camRot -= (lastMouseX - mouseX) * MOUSE_SENS;
-	tempBox.velocity.multiplyScalar(0);
-	if (k('w')) {
-		tempBox.velocity.z += Math.cos(tempBox.rotation.y - Math.PI / 2 + CTRL_ROT_OFFSET) * SPEED;
-		tempBox.velocity.x += Math.sin(tempBox.rotation.y - Math.PI / 2 + CTRL_ROT_OFFSET) * SPEED;
+	if (game) {
+		game.run();
 	}
-	if (k('s')) {
-		tempBox.velocity.z += Math.cos(tempBox.rotation.y + Math.PI / 2 + CTRL_ROT_OFFSET) * SPEED;
-		tempBox.velocity.x += Math.sin(tempBox.rotation.y + Math.PI / 2 + CTRL_ROT_OFFSET) * SPEED;
-	}
-	if (k('a')) {
-		tempBox.velocity.z += Math.cos(tempBox.rotation.y + CTRL_ROT_OFFSET) * SPEED;
-		tempBox.velocity.x += Math.sin(tempBox.rotation.y + CTRL_ROT_OFFSET) * SPEED;
-	}
-	if (k('d')) {
-		tempBox.velocity.z += Math.cos(tempBox.rotation.y - CTRL_ROT_OFFSET) * SPEED;
-		tempBox.velocity.x += Math.sin(tempBox.rotation.y - CTRL_ROT_OFFSET) * SPEED;
-	}
-	if (k('q')) {
-		tempBox.position.y -= SPEED;
-	}
-	if (k('e')) {
-		tempBox.position.y += SPEED;
-	}
-	tempBox.velocity.y += GRAV;
-	handleMotion(tempBox);
-	camera.position.set(tempBox.position.x + Math.cos(-tempBox.rotation.y + Math.PI / 2 + camRot) * 4, tempBox.position.y + 2.5, tempBox.position.z + Math.sin(-tempBox.rotation.y + Math.PI / 2 + camRot) * 4);
-	var lookPt = tempBox.position.clone();
-	lookPt.y += 1;
-	camera.lookAt(lookPt);
 	renderer.render(scene, camera);
 	lastMouseX = mouseX;
 	lastMouseY = mouseY;
