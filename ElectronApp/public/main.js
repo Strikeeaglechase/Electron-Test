@@ -3,9 +3,19 @@ const PLAYER_SPEED = 5;
 const TEXT_FADE_AFTER = 1000;
 const TEXT_FADE_SPEED = 500;
 const SERVER = 'localhost';
+const MAP_CUBE_SIZE = 1;
+const MAP_WIDTH = map[0].length * MAP_CUBE_SIZE;
+const MAP_HEIGHT = map.length * MAP_CUBE_SIZE;
+var MOUSE_SENS = 0.001;
 var keys = [];
 var game;
-var scene, camera, renderer;
+var scene, camera, renderer, light, ambiantLight;
+var mapMesh = [];
+var floor;
+var mouseX = 0;
+var mouseY = 0;
+var lastMouseX = 0;
+var lastMouseY = 0;
 
 Element.prototype.remove = function() {
 	this.parentElement.removeChild(this);
@@ -147,6 +157,62 @@ function Game(username) {
 	}
 }
 
+function loadMap(map) {
+	var geometry = new THREE.BoxGeometry(1, 1, 1);
+	var material = new THREE.MeshLambertMaterial({
+		color: 0x515151
+	});
+	for (var i = 0; i < map.length; i++) {
+		for (var j = 0; j < map[i].length; j++) {
+			if (map[i][j] == 'w') {
+				cube = new THREE.Mesh(geometry, material);
+				cube.position.set(j * MAP_CUBE_SIZE, 0, i * MAP_CUBE_SIZE);
+				cube.castShadow = true;
+				cube.receivesShadow = true;
+				scene.add(cube);
+			}
+		}
+	}
+}
+
+function checkColl(mesh, meshList) {
+	for (var vertexIndex = 0; vertexIndex < mesh.geometry.vertices.length; vertexIndex++) {
+		var localVertex = mesh.geometry.vertices[vertexIndex].clone();
+		var globalVertex = localVertex.applyMatrix4(mesh.matrix);
+		var directionVector = globalVertex.sub(mesh.position);
+
+		var ray = new THREE.Raycaster(originPoint, directionVector.clone().normalize());
+		var collisionResults = ray.intersectObjects(meshList);
+		if (collisionResults.length > 0 && collisionResults[0].distance < directionVector.length()) {
+			return true;
+		}
+	}
+	return false;
+}
+
+
+function initMouseHook() {
+	var canvas = renderer.domElement;
+	canvas.onclick = function() {
+		canvas.requestPointerLock();
+	}
+
+	function updatePosition(e) {
+		mouseX += e.movementX;
+		mouseY += e.movementY;
+	}
+
+	function lockChangeAlert() {
+		if (document.pointerLockElement === canvas ||
+			document.mozPointerLockElement === canvas) {
+			document.addEventListener("mousemove", updatePosition, false);
+		} else {
+			document.removeEventListener("mousemove", updatePosition, false);
+		}
+	}
+	document.addEventListener('pointerlockchange', lockChangeAlert, false);
+}
+
 function startGame(name) {
 	document.getElementById('main_doc').remove();
 	scene = new THREE.Scene();
@@ -154,22 +220,30 @@ function startGame(name) {
 	renderer = new THREE.WebGLRenderer();
 	renderer.setSize(window.innerWidth, window.innerHeight);
 	document.body.appendChild(renderer.domElement);
-
-	// var geometry = new THREE.BoxGeometry(1, 1, 1);
-	// var material = new THREE.MeshBasicMaterial({
-	// 	color: 0x00ff00
-	// });
-	// cube = new THREE.Mesh(geometry, material);
-	// scene.add(cube);
-
-	camera.position.z = 5;
-
+	loadMap(map);
+	camera.position.set(0, 5, 15);
+	initMouseHook();
 	var div = document.createElement('div');
 	div.className = 'overlay';
 	div.style.top = -(window.innerHeight - 25) + 'px';
 	document.body.appendChild(div);
 	// game = new Game(name);
 	// game.init();
+	floor = new THREE.Mesh(
+		new THREE.PlaneGeometry(MAP_WIDTH, MAP_HEIGHT),
+		new THREE.MeshBasicMaterial({
+			color: 0xAAAAAA
+		})
+	);
+	floor.rotation.x = -Math.PI / 2;
+	floor.position.set(MAP_WIDTH / 2 - MAP_CUBE_SIZE / 2, 0, MAP_HEIGHT / 2 - MAP_CUBE_SIZE / 2);
+	floor.receivesShadow = true;
+	light = new THREE.PointLight(0xffffff, 1, 0);
+	light.position.set(MAP_WIDTH / 2, 1.5, MAP_HEIGHT / 2);
+	light.castShadow = true;
+	ambiantLight = new THREE.AmbientLight(0xffffff, 0.2);
+	scene.add(light, floor, ambiantLight);
+
 	animate();
 }
 
@@ -191,24 +265,28 @@ function textOverlay(text, doFade) {
 	return elm;
 }
 
-function draw() {
-	background(51);
-	if (this.game && this.game.ready) {
-		this.game.run();
-	}
-}
+// function draw() {
+// 	background(51);
+// 	if (this.game && this.game.ready) {
+// 		this.game.run();
+// 	}
+// }
 
 function animate() {
 	requestAnimationFrame(animate);
+	camera.rotation.y += (lastMouseX - mouseX) * MOUSE_SENS;
+	// camera.rotation.x += (lastMouseY - mouseY) * MOUSE_SENS;
 	renderer.render(scene, camera);
-	cube.rotation.x += 0.01;
-	cube.rotation.y += 0.01;
+	lastMouseX = mouseX;
+	lastMouseY = mouseY;
 }
 
-// function keyPressed() {
-// 	keys[keyCode] = true;
-// }
-//
-// function keyReleased() {
-// 	keys[keyCode] = false;
-// }
+function keyPressed(event) {
+	keys[event.keyCode] = true;
+}
+
+function keyReleased(event) {
+	keys[event.keyCode] = false;
+}
+window.addEventListener('keydown', keyPressed);
+window.addEventListener('keyup', keyReleased);
