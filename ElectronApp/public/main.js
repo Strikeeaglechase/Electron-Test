@@ -111,21 +111,26 @@ function startGame(name) {
 	game.init(camera);
 	floor = new THREE.Mesh(
 		new THREE.PlaneGeometry(MAP_WIDTH, MAP_HEIGHT),
-		new THREE.MeshBasicMaterial({
-			color: 0xAAAAAA
+		new THREE.MeshLambertMaterial({
+			color: 0x515151
 		})
 	);
 	floor.rotation.x = -Math.PI / 2;
 	floor.position.set(MAP_WIDTH / 2 - MAP_CUBE_SIZE / 2, -MAP_CUBE_SIZE / 2, MAP_HEIGHT / 2 - MAP_CUBE_SIZE / 2);
 	floor.receivesShadow = true;
 	floor.name = 'floor';
-	light = new THREE.PointLight(0xffffff, 1, 0);
-	light.position.set(MAP_WIDTH / 2, 3.5, MAP_HEIGHT / 2);
-	light.castShadow = true;
-	ambiantLight = new THREE.AmbientLight(0xffffff, 0.2);
+	// light = new THREE.PointLight(0xff0000, 4, 4);
+	// light.position.set(7.5, 0.3, 1.5);
+	// light.castShadow = true;
+
+	ambiantLight = new THREE.AmbientLight(0xffffff, 0.4);
+
+	var spotLight = new THREE.SpotLight(0xffffff, 1);
+	spotLight.position.set(MAP_WIDTH / 2, 20, MAP_HEIGHT / 2);
+	spotLight.castShadow = true;
 
 	collisionMeshList.push(floor);
-	scene.add(light, floor, ambiantLight);
+	scene.add(light, floor, ambiantLight, spotLight);
 
 	animate();
 }
@@ -167,9 +172,10 @@ function handleMotion(mesh) {
 	mesh.rotation.set(tempRot.x, tempRot.y, tempRot.z);
 	var collider = colliders[mesh.uuid];
 	if (!collider) {
-		var material = mesh.material.clone();
-		material.wireframe = true;
-		material.color.set(0x00ff00);
+		// var material = mesh.material.clone();
+		// material.wireframe = true;
+		// material.color.set(0x00ff00);
+		var material = undefined;
 		var geometry = mesh.geometry.clone();
 		collider = {
 			x: new THREE.Mesh(geometry, material),

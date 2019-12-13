@@ -2,7 +2,8 @@ const PLAYER_SIZE = 0.4;
 const PLAYER_HEIGHT = 1.5
 const PLAYER_SPEED = 0.1;
 const PLAYER_DECL = 0.95;
-const PLAYER_MAX_SPEED = Infinity;
+const PLAYER_MAX_SPEED = 0.2;
+// const PLAYER_MAX_SPEED = Infinity;
 const CTRL_ROT_OFFSET = -Math.PI / 2;
 const GRAV = -0.01;
 const JUMP_FORCE = 1;
@@ -14,7 +15,7 @@ function Player(game, camera) {
 	this.camera = camera;
 	this.mesh;
 	this.init = function() {
-		var geometry = new THREE.CylinderGeometry(0.4, 0.4, 1.5, 10);
+		var geometry = new THREE.CylinderGeometry(PLAYER_SIZE, PLAYER_SIZE, PLAYER_HEIGHT, 10);
 		var material = new THREE.MeshLambertMaterial({
 			color: 0x515151
 		});
@@ -34,17 +35,21 @@ function Player(game, camera) {
 	}
 	this.moveCamera = function() {
 		this.camera.position.set(
-			this.mesh.position.x + Math.cos(-this.mesh.rotation.y + Math.PI / 2) * 4,
-			this.mesh.position.y + 2.5,
-			this.mesh.position.z + Math.sin(-this.mesh.rotation.y + Math.PI / 2) * 4
+			this.mesh.position.x, //+ Math.cos(-this.mesh.rotation.y + Math.PI / 2) * 4,
+			this.mesh.position.y + PLAYER_HEIGHT / 4, //+ 2.5,
+			this.mesh.position.z //+ Math.sin(-this.mesh.rotation.y + Math.PI / 2) * 4
 		);
-		var lookPt = this.mesh.position.clone();
-		lookPt.y += 1;
-		this.camera.lookAt(lookPt);
+		this.camera.rotation.set(this.mesh.rotation.x, this.mesh.rotation.y, this.mesh.rotation.z);
+		// var lookPt = this.mesh.position.clone();
+		// lookPt.y += 1;
+		// this.camera.lookAt(lookPt);
 	}
 	this.move = function() {
 		this.mesh.rotation.y += (lastMouseX - mouseX) * MOUSE_SENS;
-		this.mesh.velocity.multiplyScalar(0.95);
+		this.mesh.velocity.multiplyScalar(0.90);
+		while (this.mesh.velocity.length() > PLAYER_MAX_SPEED) {
+			this.mesh.velocity.multiplyScalar(0.99);
+		}
 		this.mesh.velocity.y += GRAV;
 		handleMotion(this.mesh);
 	}
