@@ -91,6 +91,7 @@ function initMouseHook() {
 	}
 	document.addEventListener('pointerlockchange', lockChangeAlert, false);
 }
+
 class ColorGUIHelper {
 	constructor(object, prop) {
 		this.object = object;
@@ -103,7 +104,6 @@ class ColorGUIHelper {
 		this.object[this.prop].set(hexString);
 	}
 }
-var glower;
 
 function createLargeGlowElm(mesh) {
 	var group = new THREE.Group();
@@ -132,23 +132,12 @@ function createGlowElm(mesh) {
 	return group;
 }
 
-function startGame(name) {
-	document.getElementById('main_doc').remove();
+function initScene() {
 	scene = new THREE.Scene();
 	camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 	renderer = new THREE.WebGLRenderer();
 	renderer.setSize(window.innerWidth, window.innerHeight);
 	document.body.appendChild(renderer.domElement);
-	// scene.fog = new THREE.Fog(0xffffff, 1, 25);
-	loadMap(map);
-	camera.position.set(0, 5, 15);
-	initMouseHook();
-	var div = document.createElement('div');
-	div.className = 'overlay';
-	div.style.top = -(window.innerHeight - 25) + 'px';
-	document.body.appendChild(div);
-	game = new Game(name);
-	game.init(camera);
 	floor = new THREE.Mesh(
 		new THREE.PlaneGeometry(MAP_WIDTH, MAP_HEIGHT),
 		new THREE.MeshLambertMaterial({
@@ -159,15 +148,6 @@ function startGame(name) {
 	floor.position.set(MAP_WIDTH / 2 - MAP_CUBE_SIZE / 2, -MAP_CUBE_SIZE / 2, MAP_HEIGHT / 2 - MAP_CUBE_SIZE / 2);
 	floor.receivesShadow = true;
 	floor.name = 'floor';
-	var gui = new dat.GUI();
-	var geometry = new THREE.SphereGeometry(0.01, 32, 32);
-	var material = new THREE.MeshBasicMaterial({
-		color: 0x00ff00
-	});
-	glower = createGlowElm(new THREE.Mesh(geometry, material));
-	glower.position.set(8, 0.3, 1);
-	scene.add(glower);
-
 	ambiantLight = new THREE.AmbientLight(0xffffff, 0.4);
 	var spotLight = new THREE.SpotLight(0xffffff, 1);
 	spotLight.position.set(MAP_WIDTH / 2, 20, MAP_HEIGHT / 2);
@@ -175,7 +155,22 @@ function startGame(name) {
 
 	collisionMeshList.push(floor);
 	scene.add(floor, ambiantLight, spotLight);
+}
 
+function startGame(name) {
+	document.getElementById('main_doc').remove();
+	initScene();
+	loadMap(map);
+	camera.position.set(0, 5, 15);
+	initMouseHook();
+
+	var div = document.createElement('div');
+	div.className = 'overlay';
+	div.style.top = -(window.innerHeight - 25) + 'px';
+	document.body.appendChild(div);
+
+	game = new Game(name);
+	game.init(camera);
 	animate();
 }
 
@@ -216,10 +211,10 @@ function handleMotion(mesh) {
 	mesh.rotation.set(tempRot.x, tempRot.y, tempRot.z);
 	var collider = colliders[mesh.uuid];
 	if (!collider) {
-		// var material = mesh.material.clone();
-		// material.wireframe = true;
-		// material.color.set(0x00ff00);
-		var material = undefined;
+		var material = new THREE.MeshBasicMaterial({
+			opacity: 0,
+			transparent: true
+		});
 		var geometry = mesh.geometry.clone();
 		collider = {
 			x: new THREE.Mesh(geometry, material),
@@ -257,7 +252,7 @@ function animate() {
 	if (game) {
 		game.run();
 	}
-	glower.position.z += 0.01
+	// glower.position.z += 0.01
 	renderer.render(scene, camera);
 	lastMouseX = mouseX;
 	lastMouseY = mouseY;
@@ -270,6 +265,11 @@ function keyPressed(event) {
 function keyReleased(event) {
 	keys[event.keyCode] = false;
 }
+
+function onMouseDown(event) {
+	game.click(event);
+}
 window.addEventListener('keydown', keyPressed);
 window.addEventListener('keyup', keyReleased);
+window.addEventListener("mousedown", onMouseDown);
 window.onload = startGame;
