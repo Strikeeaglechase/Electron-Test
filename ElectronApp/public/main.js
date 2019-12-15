@@ -15,6 +15,8 @@ var mouseX = 0;
 var mouseY = 0;
 var lastMouseX = 0;
 var lastMouseY = 0;
+var isMousePressed = false;
+var stats;
 
 Element.prototype.remove = function() {
 	this.parentElement.removeChild(this);
@@ -32,10 +34,11 @@ function k(letter) {
 }
 
 function loadMap(map) {
-	var geometry = new THREE.BoxGeometry(MAP_CUBE_SIZE, MAP_CUBE_SIZE * 1.5, MAP_CUBE_SIZE);
+	var geometry = new THREE.BoxGeometry(MAP_CUBE_SIZE, MAP_CUBE_SIZE * 1.5, MAP_CUBE_SIZE, 3, 3, 3);
 	var material = new THREE.MeshLambertMaterial({
 		color: 0x515151
 	});
+	var meshs = [];
 	for (var i = 0; i < map.length; i++) {
 		for (var j = 0; j < map[i].length; j++) {
 			if (map[i][j] == 'w') {
@@ -43,11 +46,30 @@ function loadMap(map) {
 				cube.position.set(j * MAP_CUBE_SIZE, 0, i * MAP_CUBE_SIZE);
 				cube.castShadow = true;
 				cube.receivesShadow = true;
+				cube.material.transparent = true;
+				cube.material.opacity = 0;
 				collisionMeshList.push(cube);
+				meshs.push(cube);
 				scene.add(cube);
 			}
 		}
 	}
+	var singleGeometry = new THREE.Geometry();
+	var material = new THREE.MeshBasicMaterial({
+		wireframe: true
+	})
+	meshs.forEach(mesh => {
+		mesh.updateMatrix();
+		singleGeometry.merge(mesh.geometry, mesh.matrix);
+	});
+	var testMesh = new THREE.Mesh(singleGeometry, new THREE.MeshLambertMaterial({
+		color: 0x515151
+	}));
+	// testMesh.castShadow = true;
+	// testMesh.receivesShadow = true;
+	testMesh.position.set(0, 0, 0);
+	scene.add(testMesh);
+
 }
 
 function checkColl(mesh, meshList, ignoredUUID) {
@@ -139,7 +161,7 @@ function initScene() {
 	renderer.setSize(window.innerWidth, window.innerHeight);
 	document.body.appendChild(renderer.domElement);
 	floor = new THREE.Mesh(
-		new THREE.PlaneGeometry(MAP_WIDTH, MAP_HEIGHT),
+		new THREE.PlaneGeometry(MAP_WIDTH, MAP_HEIGHT, 8, 8),
 		new THREE.MeshLambertMaterial({
 			color: 0x515151
 		})
@@ -149,7 +171,7 @@ function initScene() {
 	floor.receivesShadow = true;
 	floor.name = 'floor';
 	ambiantLight = new THREE.AmbientLight(0xffffff, 0.4);
-	var spotLight = new THREE.SpotLight(0xffffff, 1);
+	var spotLight = new THREE.SpotLight(0xffffff, 0.3);
 	spotLight.position.set(MAP_WIDTH / 2, 20, MAP_HEIGHT / 2);
 	spotLight.castShadow = true;
 
@@ -171,6 +193,9 @@ function startGame(name) {
 
 	game = new Game(name);
 	game.init(camera);
+	stats = new Stats();
+	stats.showPanel(0); // 0: fps, 1: ms, 2: mb, 3+: custom
+	document.body.appendChild(stats.dom);
 	animate();
 }
 
@@ -245,17 +270,18 @@ function handleMotion(mesh) {
 	return ret;
 }
 
-var camRot = 0;
-
 function animate() {
 	requestAnimationFrame(animate);
+	stats.begin();
 	if (game) {
 		game.run();
+
 	}
 	// glower.position.z += 0.01
 	renderer.render(scene, camera);
 	lastMouseX = mouseX;
 	lastMouseY = mouseY;
+	stats.end();
 }
 
 function keyPressed(event) {
@@ -267,9 +293,19 @@ function keyReleased(event) {
 }
 
 function onMouseDown(event) {
-	game.click(event);
+	if (event.button == 0) {
+		isMousePressed = true;
+	}
+}
+
+function onMouseUp(event) {
+	if (event.button == 0) {
+		isMousePressed = false;
+	}
+	this.game.click(event);
 }
 window.addEventListener('keydown', keyPressed);
 window.addEventListener('keyup', keyReleased);
 window.addEventListener("mousedown", onMouseDown);
+window.addEventListener("mouseup", onMouseUp);
 window.onload = startGame;
