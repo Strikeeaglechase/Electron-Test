@@ -12,10 +12,13 @@ const SHELL_PATH = '50bmg_shell';
 const BULLET_SCALE = 0.015;
 const BULLET_LIFE = 200;
 const BULLET_SPEED = 1;
+const BULLET_DMG = 5;
 const GUN_SCALE = 0.04;
 const DEFAULT_GUN_LERP_RATE = 0.2;
 const ADS_SPEED_MULT = 0.7;
 const FIRE_RATE = 5;
+var OPACITY_PER_BULLET = 0.166;
+var OPACITY_RESET_RATE = 0.016;
 var ENABLE_AXIS_HELPER = false;
 var MOUSE_SENS = 0.002;
 var ENABLE_THIRD_PERSON = false;
@@ -28,8 +31,7 @@ var objects = {};
 
 const lerpRates = {};
 var recoil = 0.1;
-var hRecoil = 0.04;
-var gunMode = 'hip';
+var hRecoil = 0.03;
 var gui;
 
 var a = 0;
@@ -72,6 +74,11 @@ function waitFor(varName) {
 	});
 }
 
+var gui;
+var a = 0;
+var b = 0;
+var c = 0;
+
 function Player(game, camera) {
 	this.game = game;
 	this.camera = camera;
@@ -98,8 +105,10 @@ function Player(game, camera) {
 		}
 	};
 	this.gunMode = 'hip';
+	this.hitOverlay;
 	this.bullet;
 	this.bullets = [];
+	this.hp = 100;
 	this.flashT = 0;
 	this.fireT = 0;
 	this.ready = false;
@@ -120,17 +129,30 @@ function Player(game, camera) {
 		this.cameraX = new THREE.Object3D();
 		this.cameraX.position.set(0, 0, 0);
 		if (camera) {
+			this.hitOverlay = new THREE.Mesh(
+				new THREE.PlaneGeometry(0.3, 0.3),
+				new THREE.MeshBasicMaterial({
+					color: 0xff0000,
+					transparent: true,
+					opacity: 0
+				})
+			);
+			scene.add(this.hitOverlay);
+			this.hitOverlay.position.set(0, 0, -0.1);
 			this.camera.position.set(0, 0, 0);
+			this.cameraX.add(this.hitOverlay);
 			this.cameraX.add(this.camera);
 		}
 		this.cameraY.add(this.cameraX);
 		scene.add(this.cameraY);
 		await waitFor('loadDone');
 		this.loadGun();
-		// gui = new dat.GUI();
-		// gui.add(window, 'a', -1, 1);
-		// gui.add(window, 'b', -1, 1);
-		// gui.add(window, 'c', -1, 1);
+		if (this.camera) {
+			gui = new dat.GUI();
+			gui.add(window, 'a', 0, 0.2);
+			gui.add(window, 'b', 0, 0.2);
+			gui.add(window, 'c', -1, 1);
+		}
 	}
 	this.loadGun = function() {
 		var object = objects.gun.clone();
@@ -165,7 +187,7 @@ function Player(game, camera) {
 		group.add(light, mesh, flash);
 		scene.add(group);
 		this.cameraX.add(group);
-		//this.objectLoader.load(BULLET_PATH + '.obj', function(object) {
+
 		var object = objects.bullet.clone();
 		object.position.set(0, 0.1, 0);
 		object.rotation.set(0, 0, 0);
@@ -176,51 +198,6 @@ function Player(game, camera) {
 		this.bullet = object;
 		this.gun.add(object);
 		this.ready = true;
-		//});
-		/*self.objectLoader.load(GUN_PATH + '.obj', function(object) {
-			var group = new THREE.Group();
-			// group.position.set(3, 0.45, 3);
-			object.scale.set(GUN_SCALE, GUN_SCALE, GUN_SCALE);
-			object.children.forEach(child => {
-				// child.material.wireframe = true;
-				child.material.color.set(0x444444);
-			});
-			object.children[25].material.color.set(0xff0000);
-			group.add(object);
-
-			var light = new THREE.SpotLight(0xffffff, 1);
-			light.position.set(0, 0, -0.1);
-			light.angle = 0.6;
-			light.penumbra = 1;
-			var mesh = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.1), new THREE.MeshBasicMaterial({
-				opacity: 0,
-				transparent: true
-			}));
-			mesh.position.set(0, 0, -0.5);
-			light.target = mesh;
-
-			var flash = new THREE.PointLight(0xfff799, 0.3, 3);
-			flash.position.set(0, 0, -1);
-			flash.castShadow = false;
-			flash.visible = false;
-
-			self.gun = group;
-			self.gunFlash = flash;
-			group.add(light, mesh, flash);
-			scene.add(group);
-			self.cameraX.add(group);
-			self.objectLoader.load(BULLET_PATH + '.obj', function(object) {
-				object.position.set(0, 0.1, 0);
-				object.rotation.set(0, 0, 0);
-				object.children[0].material.color.set(0xffd700);
-				object.scale.set(BULLET_SCALE, BULLET_SCALE, BULLET_SCALE);
-				object.visible = false;
-				scene.add(object);
-				self.bullet = object;
-				self.gun.add(object);
-				self.ready = true;
-			});
-		});*/
 	}
 	this.run = function() {
 		if (this.ready) {
@@ -231,6 +208,7 @@ function Player(game, camera) {
 			if (this.isLocalPlayer) {
 				this.handleKeys();
 				this.handleShoot();
+				this.hitOverlay.material.opacity -= OPACITY_RESET_RATE;
 			}
 			if (ENABLE_FLASH) {
 				this.flashT--;
@@ -363,6 +341,11 @@ function Player(game, camera) {
 			this.flashT = 2;
 		}
 		this.fireT = 0;
+	}
+	this.hit = function() {
+		this.hitOverlay.material.opacity = Math.max(0, this.hitOverlay.material.opacity);
+		this.hitOverlay.material.opacity += OPACITY_PER_BULLET;
+		this.hp -= BULLET_DMG;
 	}
 	this.getData = function() {
 		return {
