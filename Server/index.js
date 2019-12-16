@@ -75,8 +75,14 @@ function run() {
 		p2.other = p1;
 		p1.state = 'playing';
 		p2.state = 'playing';
-		p1.conn.emit('start', p2.name);
-		p2.conn.emit('start', p1.name);
+		p1.conn.emit('start', {
+			name: p2.name,
+			sp: 's'
+		});
+		p2.conn.emit('start', {
+			name: p1.name,
+			sp: 'p'
+		});
 		avalPlayers.splice(idxOf(avalPlayers, p1.id), 1);
 		avalPlayers.splice(idxOf(avalPlayers, p2.id), 1);
 	}

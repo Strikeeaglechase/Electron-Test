@@ -63,7 +63,7 @@ function isInBounds(pos) {
 	return !(pos.x < 0 || pos.y < 0 || pos.z < 0 || pos.x > MAP_WIDTH || pos.z > MAP_HEIGHT || pos.y > 20);
 }
 
-function waitFor(varName) {
+function waitFor(obj, varName) {
 	return new Promise(resolve => {
 		var interv = setInterval(() => {
 			if (window[varName]) {
@@ -149,7 +149,7 @@ function Player(game, camera) {
 		}
 		this.cameraY.add(this.cameraX);
 		scene.add(this.cameraY);
-		await waitFor('loadDone');
+		await waitFor(this, 'loadDone');
 		this.loadGun();
 		if (this.camera) {
 			gui = new dat.GUI();
@@ -402,6 +402,23 @@ function Player(game, camera) {
 		this.hitOverlay.material.opacity += OPACITY_PER_BULLET;
 		this.hp -= BULLET_DMG;
 	}
+	this.spawn = function(sp) {
+		var pt = {
+			x: 0,
+			z: 0
+		}
+		map.forEach((row, i) => {
+			row.split('').forEach((letter, j) => {
+				if (letter == sp) {
+					pt.x = j;
+					pt.z = i;
+				}
+			});
+		});
+		this.mesh.position.x = (pt.x) * MAP_CUBE_SIZE;
+		this.mesh.position.z = (pt.z) * MAP_CUBE_SIZE;
+		this.mesh.lastPos = this.mesh.position.clone();
+	}
 	this.getData = function() {
 		return {
 			id: this.game.id,
@@ -450,7 +467,7 @@ function Game(username) {
 		this.opponent.init();
 		this.opponent.mesh.position.set(2, 2, 2);
 		this.ready = true;
-		this.state = 'playing';
+		this.state = 'waiting';
 	}
 	this.setupConnection = function(socket) {
 		socket.emit('enter_pool', this.username);
@@ -463,12 +480,13 @@ function Game(username) {
 				this.userCountMsg.remove();
 				this.userCountMsg = undefined;
 			}
-			textOverlay('Fighting: ' + data, true);
+			textOverlay('Fighting: ' + data.name, true);
+			this.player.spawn(data.sp);
 		});
 		socket.on('other_disconnected', () => {
-			// this.state = 'waiting';
-			// socket.emit('enter_pool', this.username);
-			// textOverlay('Your opponent disconnected', true);
+			this.state = 'waiting';
+			socket.emit('enter_pool', this.username);
+			textOverlay('Your opponent disconnected', true);
 		});
 		socket.on('game_data', data => {
 			if (data.type == 'player_info' && this.opponent) {

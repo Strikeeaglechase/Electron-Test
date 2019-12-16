@@ -22,10 +22,10 @@
 // ];
 var map = [
 	'wwwwwww',
-	'ww----w',
+	'ws----w',
 	'w-----w',
 	'w-----w',
 	'w-----w',
-	'w-----w',
+	'w----pw',
 	'wwwwwww'
 ]

@@ -5,10 +5,11 @@ const MAP_CUBE_SIZE = 1;
 const MAP_WIDTH = map[0].length * MAP_CUBE_SIZE;
 const MAP_HEIGHT = map.length * MAP_CUBE_SIZE;
 const SIM_STEP = 1;
+var ENABLE_LIGHTS = true;
 
 var keys = [];
 var game;
-var scene, camera, renderer, ambiantLight, floor, mapGroup;
+var scene, camera, renderer, floor, mapGroup;
 var collisionMeshList = [];
 var colliders = {};
 var mouseX = 0;
@@ -17,6 +18,7 @@ var lastMouseX = 0;
 var lastMouseY = 0;
 var isMousePressed = false;
 var stats;
+var lights = [];
 
 Element.prototype.remove = function() {
 	this.parentElement.removeChild(this);
@@ -138,6 +140,15 @@ function createGlowElm(mesh) {
 	return group;
 }
 
+function loadLights() {
+	var ambiantLight = new THREE.AmbientLight(0xffffff, 0.4);
+	var spotLight = new THREE.SpotLight(0xffffff, 0.3);
+	spotLight.position.set(MAP_WIDTH / 2, 20, MAP_HEIGHT / 2);
+	spotLight.castShadow = true;
+	lights.push(ambiantLight, spotLight);
+	scene.add(ambiantLight, spotLight);
+}
+
 function initScene() {
 	scene = new THREE.Scene();
 	camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -155,13 +166,12 @@ function initScene() {
 	floor.position.set(MAP_WIDTH / 2 - MAP_CUBE_SIZE / 2, -MAP_CUBE_SIZE / 2, MAP_HEIGHT / 2 - MAP_CUBE_SIZE / 2);
 	floor.receivesShadow = true;
 	floor.name = 'floor';
-	ambiantLight = new THREE.AmbientLight(0xffffff, 0.4);
-	var spotLight = new THREE.SpotLight(0xffffff, 0.3);
-	spotLight.position.set(MAP_WIDTH / 2, 20, MAP_HEIGHT / 2);
-	spotLight.castShadow = true;
+	if (ENABLE_LIGHTS) {
+		loadLights();
+	}
 
 	collisionMeshList.push(floor);
-	scene.add(floor, ambiantLight, spotLight);
+	scene.add(floor);
 }
 
 function startGame(name) {
@@ -176,10 +186,10 @@ function startGame(name) {
 	div.style.top = -(window.innerHeight - 25) + 'px';
 	document.body.appendChild(div);
 
-	game = new Game(name);
+	game = new Game( /*name*/ 'name');
 	game.init(camera);
 	stats = new Stats();
-	stats.showPanel(0); // 0: fps, 1: ms, 2: mb, 3+: custom
+	stats.showPanel(0);
 	document.body.appendChild(stats.dom);
 	animate();
 }
@@ -210,7 +220,6 @@ function handleMotion(mesh) {
 	mesh.rotation.set(0, 0, 0);
 	mesh.updateMatrix();
 	if (checkColl(mesh, collisionMeshList)) {
-		console.log('Revert to pre-move');
 		mesh.position.x = mesh.lastPos.x;
 		mesh.position.y = mesh.lastPos.y;
 		mesh.position.z = mesh.lastPos.z;
@@ -262,7 +271,12 @@ function animate() {
 		game.run();
 
 	}
-	// glower.position.z += 0.01
+	if (ENABLE_LIGHTS && !lights.length) {
+		loadLights()
+	} else if (!ENABLE_LIGHTS && lights.length) {
+		lights.forEach(light => scene.remove(light));
+		lights = [];
+	}
 	renderer.render(scene, camera);
 	lastMouseX = mouseX;
 	lastMouseY = mouseY;
