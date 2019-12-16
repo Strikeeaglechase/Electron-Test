@@ -36,6 +36,7 @@ function k(letter) {
 }
 
 function loadMap(map) {
+	console.log('Loading map');
 	var geometry = new THREE.BoxGeometry(MAP_CUBE_SIZE, MAP_CUBE_SIZE * 4, MAP_CUBE_SIZE, 3, 3, 3);
 	var material = new THREE.MeshLambertMaterial({
 		color: 0x515151
@@ -54,6 +55,7 @@ function loadMap(map) {
 		}
 	}
 	mapG.position.set(0, 0, 0);
+	mapG.name = 'map';
 	scene.add(mapG);
 	mapGroup = mapG;
 }
@@ -269,7 +271,6 @@ function animate() {
 	stats.begin();
 	if (game) {
 		game.run();
-
 	}
 	if (ENABLE_LIGHTS && !lights.length) {
 		loadLights()

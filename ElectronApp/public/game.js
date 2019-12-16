@@ -225,44 +225,36 @@ function Player(game, camera) {
 		this.gun.add(object);
 		this.ready = true;
 	}
+	this.runLaser = function() {
+		var ray = this.gun.children.find(child => child.name == 'laser');
+		var orig = this.gun.children.find(child => child.name == 'laserEmitter').position.clone();
+		var pt2 = this.gun.children.find(child => child.name == 'laserEmitter2').position.clone();
+		var worldOrig = orig.clone().applyMatrix4(ray.matrixWorld);
+		pt2.applyMatrix4(ray.matrixWorld);
+
+		var dir = pt2.sub(worldOrig).normalize();
+		this.raycaster.set(worldOrig, dir);
+		var hitable = mapGroup.children.concat([floor, this.game.opponent.mesh]);
+		var intersects = this.raycaster.intersectObjects(hitable);
+		var d = 10000;
+		if (intersects.length > 0) {
+			d = intersects[0].distance;
+		}
+		var localDir = new THREE.Vector3(0, 0, -1).multiplyScalar(d);
+		this.ray.geometry.vertices[0] = orig;
+		this.ray.geometry.vertices[1] = orig.clone().add(localDir);
+		this.ray.geometry.verticesNeedUpdate = true;
+	}
 	this.run = function() {
 		if (this.ready) {
 			this.move();
 			this.runBullets();
 			this.moveGun();
 			this.moveCamera();
+			this.runLaser();
 			if (this.isLocalPlayer) {
 				this.handleKeys();
 				this.handleShoot();
-				var ray = this.gun.children.find(child => child.name == 'laser');
-				var orig = this.gun.children.find(child => child.name == 'laserEmitter').position.clone();
-				var pt2 = this.gun.children.find(child => child.name == 'laserEmitter2').position.clone();
-				orig.applyMatrix4(ray.matrixWorld);
-				pt2.applyMatrix4(ray.matrixWorld);
-
-				var dir = pt2.sub(orig).normalize();
-				this.raycaster.set(orig, dir);
-
-				var intersects = this.raycaster.intersectObjects(mapGroup.children);
-				var d = 10000;
-				if (intersects.length > 0) {
-					d = intersects[0].distance;
-				}
-				this.ray.geometry.vertices[0] = this.raycaster.ray.origin;
-				this.ray.geometry.vertices[1] = this.raycaster.ray.origin.clone().add(dir.multiplyScalar(d));
-				this.ray.geometry.verticesNeedUpdate = true;
-				// scene.remove(this.ray);
-				// var material = new THREE.LineBasicMaterial({
-				// 	color: 0x0000ff
-				// });
-				// var geometry = new THREE.Geometry();
-				// geometry.vertices.push(
-				// 	this.raycaster.ray.origin,
-				// 	this.raycaster.ray.origin.clone().add(dir.multiplyScalar(d))
-				// );
-				// this.ray = new THREE.Line(geometry, material);
-				// scene.add(this.ray);
-
 				this.hitOverlay.material.opacity -= OPACITY_RESET_RATE;
 			}
 			if (ENABLE_FLASH) {
@@ -395,6 +387,10 @@ function Player(game, camera) {
 			this.gunFlash.visible = true;
 			this.flashT = 2;
 		}
+		this.socket.emit('game_data', {
+			type: 'player_info',
+			player: this.player.getData()
+		});
 		this.fireT = 0;
 	}
 	this.hit = function() {
