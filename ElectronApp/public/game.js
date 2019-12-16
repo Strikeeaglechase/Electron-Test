@@ -248,17 +248,20 @@ function Player(game, camera) {
 				if (intersects.length > 0) {
 					d = intersects[0].distance;
 				}
-				scene.remove(this.ray);
-				var material = new THREE.LineBasicMaterial({
-					color: 0x0000ff
-				});
-				var geometry = new THREE.Geometry();
-				geometry.vertices.push(
-					this.raycaster.ray.origin,
-					this.raycaster.ray.origin.clone().add(dir.multiplyScalar(d))
-				);
-				this.ray = new THREE.Line(geometry, material);
-				scene.add(this.ray);
+				this.ray.geometry.vertices[0] = this.raycaster.ray.origin;
+				this.ray.geometry.vertices[1] = this.raycaster.ray.origin.clone().add(dir.multiplyScalar(d));
+				this.ray.geometry.verticesNeedUpdate = true;
+				// scene.remove(this.ray);
+				// var material = new THREE.LineBasicMaterial({
+				// 	color: 0x0000ff
+				// });
+				// var geometry = new THREE.Geometry();
+				// geometry.vertices.push(
+				// 	this.raycaster.ray.origin,
+				// 	this.raycaster.ray.origin.clone().add(dir.multiplyScalar(d))
+				// );
+				// this.ray = new THREE.Line(geometry, material);
+				// scene.add(this.ray);
 
 				this.hitOverlay.material.opacity -= OPACITY_RESET_RATE;
 			}
