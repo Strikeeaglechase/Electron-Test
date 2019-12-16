@@ -1,6 +1,6 @@
 const TEXT_FADE_AFTER = 1000;
 const TEXT_FADE_SPEED = 500;
-const SERVER = 'localhost';
+const SERVER = 'http://localhost:8000';
 const MAP_CUBE_SIZE = 1;
 const MAP_WIDTH = map[0].length * MAP_CUBE_SIZE;
 const MAP_HEIGHT = map.length * MAP_CUBE_SIZE;
@@ -161,9 +161,10 @@ function initScene() {
 	renderer.setSize(window.innerWidth, window.innerHeight);
 	document.body.appendChild(renderer.domElement);
 	floor = new THREE.Mesh(
-		new THREE.PlaneGeometry(MAP_WIDTH, MAP_HEIGHT, 8, 8),
+		new THREE.PlaneGeometry(MAP_WIDTH, MAP_HEIGHT, 16, 16),
 		new THREE.MeshLambertMaterial({
-			color: 0x515151
+			color: 0x515151,
+			wireframe: false
 		})
 	);
 	floor.rotation.x = -Math.PI / 2;
