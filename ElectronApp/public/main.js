@@ -34,11 +34,10 @@ function k(letter) {
 }
 
 function loadMap(map) {
-	var geometry = new THREE.BoxGeometry(MAP_CUBE_SIZE, MAP_CUBE_SIZE * 1.5, MAP_CUBE_SIZE, 3, 3, 3);
+	var geometry = new THREE.BoxGeometry(MAP_CUBE_SIZE, MAP_CUBE_SIZE * 4, MAP_CUBE_SIZE, 3, 3, 3);
 	var material = new THREE.MeshLambertMaterial({
 		color: 0x515151
 	});
-	var meshs = [];
 	for (var i = 0; i < map.length; i++) {
 		for (var j = 0; j < map[i].length; j++) {
 			if (map[i][j] == 'w') {
@@ -46,30 +45,11 @@ function loadMap(map) {
 				cube.position.set(j * MAP_CUBE_SIZE, 0, i * MAP_CUBE_SIZE);
 				cube.castShadow = true;
 				cube.receivesShadow = true;
-				cube.material.transparent = true;
-				cube.material.opacity = 0;
 				collisionMeshList.push(cube);
-				meshs.push(cube);
 				scene.add(cube);
 			}
 		}
 	}
-	var singleGeometry = new THREE.Geometry();
-	var material = new THREE.MeshBasicMaterial({
-		wireframe: true
-	})
-	meshs.forEach(mesh => {
-		mesh.updateMatrix();
-		singleGeometry.merge(mesh.geometry, mesh.matrix);
-	});
-	var testMesh = new THREE.Mesh(singleGeometry, new THREE.MeshLambertMaterial({
-		color: 0x515151
-	}));
-	// testMesh.castShadow = true;
-	// testMesh.receivesShadow = true;
-	testMesh.position.set(0, 0, 0);
-	scene.add(testMesh);
-
 }
 
 function checkColl(mesh, meshList, ignoredUUID) {
