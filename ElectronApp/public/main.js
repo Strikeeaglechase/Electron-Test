@@ -8,7 +8,7 @@ const SIM_STEP = 1;
 
 var keys = [];
 var game;
-var scene, camera, renderer, ambiantLight, floor;
+var scene, camera, renderer, ambiantLight, floor, mapGroup;
 var collisionMeshList = [];
 var colliders = {};
 var mouseX = 0;
@@ -38,18 +38,22 @@ function loadMap(map) {
 	var material = new THREE.MeshLambertMaterial({
 		color: 0x515151
 	});
+	var mapG = new THREE.Group();
 	for (var i = 0; i < map.length; i++) {
 		for (var j = 0; j < map[i].length; j++) {
 			if (map[i][j] == 'w') {
-				cube = new THREE.Mesh(geometry, material);
+				cube = new THREE.Mesh(geometry, material.clone());
 				cube.position.set(j * MAP_CUBE_SIZE, 0, i * MAP_CUBE_SIZE);
 				cube.castShadow = true;
 				cube.receivesShadow = true;
 				collisionMeshList.push(cube);
-				scene.add(cube);
+				mapG.add(cube);
 			}
 		}
 	}
+	mapG.position.set(0, 0, 0);
+	scene.add(mapG);
+	mapGroup = mapG;
 }
 
 function checkColl(mesh, meshList, ignoredUUID) {

@@ -87,6 +87,7 @@ function Player(game, camera) {
 	this.gun;
 	this.gunGroup;
 	this.gunFlash;
+	this.raycaster;
 	this.gunOffset = {
 		hip: {
 			offsetX: 0.21,
@@ -119,6 +120,9 @@ function Player(game, camera) {
 		});
 		this.mesh = new THREE.Mesh(geometry, material);
 		this.mesh.position.set(MAP_WIDTH / 2, PLAYER_HEIGHT, MAP_HEIGHT / 2);
+		if (!this.isLocalPlayer) {
+			this.mesh.position.z += 2;
+		}
 		this.mesh.castShadow = true;
 		this.mesh.receivesShadow = true;
 		this.mesh.velocity = new THREE.Vector3(0, 0, 0);
@@ -157,7 +161,6 @@ function Player(game, camera) {
 	this.loadGun = function() {
 		var object = objects.gun.clone();
 		var group = new THREE.Group();
-		// group.position.set(3, 0.45, 3);
 		object.scale.set(GUN_SCALE, GUN_SCALE, GUN_SCALE);
 		object.children.forEach(child => {
 			// child.material.wireframe = true;
@@ -176,6 +179,29 @@ function Player(game, camera) {
 		}));
 		mesh.position.set(0, 0, -0.5);
 		light.target = mesh;
+
+		var vec = new THREE.Vector3(0, 0, -1);
+		var orig = new THREE.Object3D();
+		orig.position.set(0.068, 0.093, -0.15);
+		orig.name = 'laserEmitter';
+		var orig2 = new THREE.Object3D();
+		orig2.position.set(0.068, 0.093, -0.2);
+		orig2.name = 'laserEmitter2';
+		this.raycaster = new THREE.Raycaster();
+		var material = new THREE.LineBasicMaterial({
+			// transparent: true,
+			// opacity: 0,
+			color: 0x0000ff
+		});
+		var geometry = new THREE.Geometry();
+		geometry.vertices.push(
+			orig.position.clone(),
+			orig.position.clone().add(vec.clone().multiplyScalar(1000))
+		);
+		this.ray = new THREE.Line(geometry, material);
+		this.ray.name = 'laser';
+		this.ray.geometry.dynamic = true
+		group.add(this.ray, orig, orig2);
 
 		var flash = new THREE.PointLight(0xfff799, 0.3, 3);
 		flash.position.set(0, 0, -1);
@@ -208,6 +234,32 @@ function Player(game, camera) {
 			if (this.isLocalPlayer) {
 				this.handleKeys();
 				this.handleShoot();
+				var ray = this.gun.children.find(child => child.name == 'laser');
+				var orig = this.gun.children.find(child => child.name == 'laserEmitter').position.clone();
+				var pt2 = this.gun.children.find(child => child.name == 'laserEmitter2').position.clone();
+				orig.applyMatrix4(ray.matrixWorld);
+				pt2.applyMatrix4(ray.matrixWorld);
+
+				var dir = pt2.sub(orig).normalize();
+				this.raycaster.set(orig, dir);
+
+				var intersects = this.raycaster.intersectObjects(mapGroup.children);
+				var d = 10000;
+				if (intersects.length > 0) {
+					d = intersects[0].distance;
+				}
+				scene.remove(this.ray);
+				var material = new THREE.LineBasicMaterial({
+					color: 0x0000ff
+				});
+				var geometry = new THREE.Geometry();
+				geometry.vertices.push(
+					this.raycaster.ray.origin,
+					this.raycaster.ray.origin.clone().add(dir.multiplyScalar(d))
+				);
+				this.ray = new THREE.Line(geometry, material);
+				scene.add(this.ray);
+
 				this.hitOverlay.material.opacity -= OPACITY_RESET_RATE;
 			}
 			if (ENABLE_FLASH) {
