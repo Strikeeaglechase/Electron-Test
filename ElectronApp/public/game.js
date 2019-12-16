@@ -10,41 +10,37 @@ const GUN_PATH = 'M4A1';
 const BULLET_PATH = '50bmg_bullet';
 const SHELL_PATH = '50bmg_shell';
 const BULLET_SCALE = 0.015;
-const BULLET_LIFE = 1;
+const BULLET_LIFE = 200;
 const BULLET_SPEED = 1;
-
 const GUN_SCALE = 0.04;
 const DEFAULT_GUN_LERP_RATE = 0.2;
 const ADS_SPEED_MULT = 0.7;
 const FIRE_RATE = 5;
+var ENABLE_AXIS_HELPER = false;
+
 var MOUSE_SENS = 0.002;
 var ENABLE_THIRD_PERSON = false;
 var ENABLE_FLASH = false;
-const lerpRates = {
-	vRot: 0.1
-};
+const lerpRates = {};
 const gunPosition = {
 	hip: {
 		offsetX: 0.21,
 		offsetY: -0.28,
 		offsetZ: -0.42,
-		vRot: 0,
 	},
 	ads: {
 		offsetX: 0,
 		offsetY: -0.18,
 		offsetZ: -0.42,
-		vRot: 0,
 	},
 	current: {
 		offsetX: 0.21,
 		offsetY: -0.18,
 		offsetZ: -0.42,
-		vRot: 0,
 	}
 }
 var recoil = 0.1;
-var hRecoil = 0.03;
+var hRecoil = 0.02;
 var gunMode = 'hip';
 var gui;
 
@@ -99,9 +95,6 @@ function Player(game, camera) {
 		gui.add(window, 'a', -1, 1);
 		gui.add(window, 'b', -1, 1);
 		gui.add(window, 'c', -1, 1);
-		axisH = new THREE.AxesHelper(1.5);
-		scene.add(axisH);
-
 	}
 	this.loadGun = function() {
 		var self = this;
@@ -110,7 +103,7 @@ function Player(game, camera) {
 			// group.position.set(3, 0.45, 3);
 			object.scale.set(GUN_SCALE, GUN_SCALE, GUN_SCALE);
 			object.children.forEach(child => {
-				child.material.wireframe = true;
+				// child.material.wireframe = true;
 				child.material.color.set(0x444444);
 			});
 			object.children[25].material.color.set(0xff0000);
@@ -164,14 +157,15 @@ function Player(game, camera) {
 					this.gunFlash.visible = false;
 				}
 			}
-			this.shoot();
+			if (ENABLE_AXIS_HELPER && !axisH) {
+				axisH = new THREE.AxesHelper(1.5);
+				scene.add(axisH);
+			}
 		}
 		this.fireT++;
 	}
 	this.moveGun = function() {
 		this.gun.position.set(gunPosition.current.offsetX, gunPosition.current.offsetY, gunPosition.current.offsetZ);
-		// this.gun.rotation.set(this.cameraX.rotation.x, this.mesh.rotation.y, this.mesh.rotation.z);
-		// this.gun.rotateOnAxis(new THREE.Vector3(1, 0, 0), gunPosition.current.vRot);
 		var wanted = gunPosition[gunMode];
 		for (var i in gunPosition.current) {
 			gunPosition.current[i] = lerp(gunPosition.current[i], wanted[i], lerpRates[i] || DEFAULT_GUN_LERP_RATE);
@@ -210,7 +204,7 @@ function Player(game, camera) {
 	}
 	this.runBullets = function() {
 		this.bullets.forEach((bullet, idx) => {
-			// bullet.collider.translateY(BULLET_SPEED);
+			bullet.collider.translateY(BULLET_SPEED);
 			bullet.t++;
 			if (bullet.t > BULLET_LIFE) {
 				scene.remove(bullet.collider);
@@ -246,32 +240,28 @@ function Player(game, camera) {
 		scene.updateMatrixWorld();
 		var vector = new THREE.Vector3();
 		vector.setFromMatrixPosition(this.bullet.matrixWorld);
-		// var rot = new THREE.Euler();
-		// rot.setFromRotationMatrix(this.bullet.matrixWorld);
-
 		var col = new THREE.Mesh(
 			new THREE.CylinderGeometry(BULLET_SCALE, BULLET_SCALE, BULLET_SCALE * 7, 6), new THREE.MeshBasicMaterial({
 				color: 0x00ffff,
 				wireframe: true,
-				transparent: false,
+				transparent: true,
 				opacity: 0
 			})
 		);
 		col.position.set(vector.x, vector.y, vector.z)
 		col.rotation.set(this.gun.rotation.x, this.gun.rotation.y, this.gun.rotation.z)
 
-		// col.rotateX(-Math.PI / 2 + this.cameraX.rotation.x);
-		// col.rotateZ(this.cameraY.rotation.y);
+		col.rotateY(this.cameraY.rotation.y + Math.PI);
+		col.rotateX(Math.PI / 2 - this.cameraX.rotation.x);
+		col.translateY(0.49);
 
-		col.rotateX(a);
-		col.rotateY(b);
-		col.rotateZ(c);
-
-		axisH.position.set(col.position.x, col.position.y, col.position.z);
-		axisH.rotation.set(col.rotation.x, col.rotation.y, col.rotation.z);
+		if (ENABLE_AXIS_HELPER) {
+			axisH.position.set(col.position.x, col.position.y, col.position.z);
+			axisH.rotation.set(col.rotation.x, col.rotation.y, col.rotation.z);
+		}
 
 		var newBul = this.bullet.clone();
-		newBul.position.set(0, BULLET_SCALE * 2, 0);
+		newBul.position.set(0, -BULLET_SCALE * 2, 0);
 		newBul.rotation.set(Math.PI, 0, Math.PI);
 		newBul.visible = true;
 		col.add(newBul);
@@ -283,8 +273,7 @@ function Player(game, camera) {
 		});
 		scene.add(col);
 
-		// gunPosition.current.vRot += recoil;
-		// gunPosition.current.heightOffset += hRecoil;
+		gunPosition.current.offsetY += hRecoil;
 		if (ENABLE_FLASH) {
 			this.gunFlash.visible = true;
 			this.flashT = 2;
