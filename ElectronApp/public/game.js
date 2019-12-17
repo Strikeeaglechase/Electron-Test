@@ -21,6 +21,7 @@ const FIRE_RATE = 5;
 var OPACITY_PER_BULLET = 0.166;
 var OPACITY_RESET_RATE = 0.016;
 var ENABLE_AXIS_HELPER = false;
+var ENABLE_GUI = false;
 var MOUSE_SENS = 0.002;
 var ENABLE_THIRD_PERSON = false;
 var ENABLE_FLASH = false;
@@ -122,12 +123,13 @@ function Player(game, camera) {
 	this.init = async function() {
 		var geometry = new THREE.CylinderGeometry(PLAYER_SIZE, PLAYER_SIZE, PLAYER_HEIGHT, 10);
 		var material = new THREE.MeshLambertMaterial({
-			color: 0x515151
+			// color: 0x515151
+			color: 0xB68642
 		});
 		this.mesh = new THREE.Mesh(geometry, material);
 		this.mesh.position.set(MAP_WIDTH / 2, PLAYER_HEIGHT, MAP_HEIGHT / 2);
-		if (!this.isLocalPlayer) {
-			this.mesh.position.z += 2;
+		if (this.isLocalPlayer) {
+			this.mesh.name = 'me';
 		}
 		this.mesh.castShadow = true;
 		this.mesh.receivesShadow = true;
@@ -158,12 +160,12 @@ function Player(game, camera) {
 		await waitFor(this, 'loadDone');
 		this.loadGun();
 		if (this.camera) {
-			gui = new dat.GUI();
-			gui.add(window, 'a', -1, 1);
-			gui.add(window, 'b', -1, 1);
-			gui.add(window, 'c', -1, 1);
-			gui.add(lerpRates, 'vRot', 0, 0.2);
-			gui.add(window, 'recoil', 0, 0.4);
+			if (ENABLE_GUI && !gui) {
+				gui = new dat.GUI();
+				gui.add(window, 'a', -1, 1);
+				gui.add(window, 'b', -1, 1);
+				gui.add(window, 'c', -1, 1);
+			}
 		}
 	}
 	this.loadGun = function() {
@@ -174,8 +176,14 @@ function Player(game, camera) {
 			// child.material.wireframe = true;
 			child.material.color.set(0x444444);
 		});
-		object.children[25].material.color.set(0xff0000);
-		group.add(object);
+		object.castShadow = true;
+		var redical = object.children[25];
+		redical.material = new THREE.MeshBasicMaterial({
+			color: 0xff0000
+		})
+		var intLight = new THREE.PointLight(0x00ffff, 0.5, 0.2);
+		intLight.position.set(0, 0.18, 0.15);
+		group.add(object, intLight);
 
 		var light = new THREE.SpotLight(0xffffff, 1);
 		light.position.set(0, 0, -0.1);
@@ -249,8 +257,9 @@ function Player(game, camera) {
 			d = intersects[0].distance;
 		}
 		var localDir = new THREE.Vector3(0, 0, -1).multiplyScalar(d);
+		var endPt = orig.clone().add(localDir);
 		this.ray.geometry.vertices[0] = orig;
-		this.ray.geometry.vertices[1] = orig.clone().add(localDir);
+		this.ray.geometry.vertices[1] = endPt;
 		this.ray.geometry.verticesNeedUpdate = true;
 	}
 	this.run = function() {
@@ -323,7 +332,7 @@ function Player(game, camera) {
 			bullet.collider.translateY(BULLET_SPEED);
 			bullet.t++;
 			var col = checkColl(bullet.collider, collisionMeshList)
-			if (bullet.t > BULLET_LIFE || col || !isInBounds(bullet.collider.position)) {
+			if (bullet.t > BULLET_LIFE || (col && bullet.t > 2) || !isInBounds(bullet.collider.position)) {
 				scene.remove(bullet.collider);
 				this.bullets.splice(idx, 1);
 			}
@@ -354,7 +363,6 @@ function Player(game, camera) {
 		}
 	}
 	this.shoot = function() {
-		scene.updateMatrixWorld();
 		var col = new THREE.Mesh(
 			new THREE.CylinderGeometry(BULLET_SCALE, BULLET_SCALE, BULLET_SCALE * 7, 6), new THREE.MeshBasicMaterial({
 				color: 0x00ffff,
@@ -382,7 +390,7 @@ function Player(game, camera) {
 		col.add(newBul);
 
 		this.bullets.push({
-			// bullet: newBul,
+			bullet: newBul,
 			collider: col,
 			t: 0
 		});
@@ -394,20 +402,53 @@ function Player(game, camera) {
 			this.gunFlash.visible = true;
 			this.flashT = 2;
 		}
-		// this.socket.emit('game_data', {
-		// 	type: 'new_bullet',
-		// 	bullet: {
-		// 		position: {
-		// 			x:
-		// 		}
-		// 	}
-		// });
+		this.game.socket.emit('game_data', {
+			type: 'new_bullet',
+			bullet: {
+				position: {
+					x: col.position.x,
+					y: col.position.y,
+					z: col.position.z
+				},
+				rotation: {
+					x: col.rotation.x,
+					y: col.rotation.y,
+					z: col.rotation.z
+				}
+			}
+		});
 		this.fireT = 0;
 	}
 	this.hit = function() {
 		this.hitOverlay.material.opacity = Math.max(0, this.hitOverlay.material.opacity);
 		this.hitOverlay.material.opacity += OPACITY_PER_BULLET;
 		this.hp -= BULLET_DMG;
+	}
+	this.spawnOpponetBullet = function(bullet) {
+		var col = new THREE.Mesh(
+			new THREE.CylinderGeometry(BULLET_SCALE, BULLET_SCALE, BULLET_SCALE * 7, 6),
+			new THREE.MeshBasicMaterial({
+				color: 0x00ffff,
+				wireframe: true,
+				transparent: true,
+				opacity: 0
+			})
+		);
+		col.position.set(bullet.position.x, bullet.position.y, bullet.position.z);
+		col.rotation.set(bullet.rotation.x, bullet.rotation.y, bullet.rotation.z);
+		var newBul = this.bullet.clone();
+		newBul.position.set(0, -BULLET_SCALE * 2, 0);
+		newBul.rotation.set(Math.PI, 0, Math.PI);
+		newBul.visible = true;
+		col.add(newBul);
+
+		this.bullets.push({
+			bullet: newBul,
+			collider: col,
+			t: 0
+		});
+
+		scene.add(col);
 	}
 	this.spawn = function(sp) {
 		var pt = {
@@ -510,6 +551,8 @@ function Game(username) {
 				this.opponent.gunMode = data.player.gunMode;
 				this.opponent.cameraX.rotation.x = data.player.cXRot;
 				this.opponent.cameraY.rotation.y = data.player.cYRot;
+			} else if (data.type == 'new_bullet') {
+				this.player.spawnOpponetBullet(data.bullet);
 			}
 		});
 		setInterval(() => {
@@ -541,7 +584,7 @@ function Game(username) {
 				player: this.player.getData()
 			});
 			this.player.run();
-			// this.opponent.run();
+			this.opponent.run();
 		}
 	}
 	this.click = function(event) {
