@@ -1,6 +1,7 @@
 const PLAYER_SIZE = 0.25;
 const PLAYER_HEIGHT = 1
 const PLAYER_SPEED = 0.02;
+const PLAYER_STRAFE_SPEED_MULT = 0.7;
 const PLAYER_DECL = 0.85;
 const PLAYER_MAX_SPEED = 0.2;
 const CAM_HIGHT_OFFSET = 0.25
@@ -14,7 +15,7 @@ const BULLET_SCALE = 0.015;
 const BULLET_LIFE = 200;
 const BULLET_SPEED = 1;
 const BULLET_DMG = 5;
-const BULLET_SIM_STEP = 1;
+const BULLET_SIM_STEP = 2;
 const GUN_SCALE = 0.04;
 const DEFAULT_GUN_LERP_RATE = 0.2;
 const ADS_SPEED_MULT = 0.7;
@@ -22,7 +23,7 @@ const FIRE_RATE = 5;
 var OPACITY_PER_BULLET = 0.166;
 var OPACITY_RESET_RATE = 0.016;
 var ENABLE_AXIS_HELPER = false;
-var ENABLE_GUI = true;
+var ENABLE_GUI = false;
 var MOUSE_SENS = 0.002;
 var ENABLE_THIRD_PERSON = false;
 var ENABLE_FLASH = false;
@@ -124,7 +125,6 @@ function Player(game, camera) {
 	this.init = async function() {
 		var geometry = new THREE.CylinderGeometry(PLAYER_SIZE, PLAYER_SIZE, PLAYER_HEIGHT, 10);
 		var material = new THREE.MeshLambertMaterial({
-			// color: 0x515151
 			color: 0xB68642
 		});
 		this.mesh = new THREE.Mesh(geometry, material);
@@ -145,6 +145,7 @@ function Player(game, camera) {
 		this.meshBB = new THREE.Box3();
 		this.meshBB.name = this.isLocalPlayer ? 'me' : 'opponent';
 		bulletColliders.push(this.meshBB);
+		collisionMeshList.push(this.mesh);
 		scene.add(this.mesh);
 		this.cameraY = new THREE.Object3D();
 		this.cameraX = new THREE.Object3D();
@@ -349,7 +350,7 @@ function Player(game, camera) {
 						col = collider.name;
 					}
 				});
-				if (bullet.t > BULLET_LIFE || (col && bullet.t > 2) || !isInBounds(bullet.mover.position)) {
+				if (bullet.t > BULLET_LIFE || col || !isInBounds(bullet.mover.position)) {
 					if (col == 'me') {
 						this.hit();
 					}
@@ -371,12 +372,12 @@ function Player(game, camera) {
 			this.mesh.velocity.x += Math.sin(this.mesh.rotation.y + Math.PI / 2 + CTRL_ROT_OFFSET) * speed;
 		}
 		if (k('a')) {
-			this.mesh.velocity.z += Math.cos(this.mesh.rotation.y + CTRL_ROT_OFFSET) * speed;
-			this.mesh.velocity.x += Math.sin(this.mesh.rotation.y + CTRL_ROT_OFFSET) * speed;
+			this.mesh.velocity.z += Math.cos(this.mesh.rotation.y + CTRL_ROT_OFFSET) * speed * PLAYER_STRAFE_SPEED_MULT;
+			this.mesh.velocity.x += Math.sin(this.mesh.rotation.y + CTRL_ROT_OFFSET) * speed * PLAYER_STRAFE_SPEED_MULT;
 		}
 		if (k('d')) {
-			this.mesh.velocity.z += Math.cos(this.mesh.rotation.y - CTRL_ROT_OFFSET) * speed;
-			this.mesh.velocity.x += Math.sin(this.mesh.rotation.y - CTRL_ROT_OFFSET) * speed;
+			this.mesh.velocity.z += Math.cos(this.mesh.rotation.y - CTRL_ROT_OFFSET) * speed * PLAYER_STRAFE_SPEED_MULT;
+			this.mesh.velocity.x += Math.sin(this.mesh.rotation.y - CTRL_ROT_OFFSET) * speed * PLAYER_STRAFE_SPEED_MULT;
 		}
 	}
 	this.handleShoot = function() {
