@@ -11,10 +11,10 @@ const GUN_PATH = 'M4A1';
 const BULLET_PATH = '50bmg_bullet';
 const SHELL_PATH = '50bmg_shell';
 const BULLET_SCALE = 0.015;
-const BULLET_LIFE = 1;
-var BULLET_SPEED = 1;
+const BULLET_LIFE = 200;
+const BULLET_SPEED = 1;
 const BULLET_DMG = 5;
-var BULLET_SIM_STEP = 2;
+const BULLET_SIM_STEP = 1;
 const GUN_SCALE = 0.04;
 const DEFAULT_GUN_LERP_RATE = 0.2;
 const ADS_SPEED_MULT = 0.7;
@@ -83,25 +83,6 @@ var a = 0;
 var b = 0;
 var c = 0;
 
-function test(mesh) {
-	mesh.geometry.computeBoundingBox();
-	var box = mesh.geometry.boundingBox,
-		geom = new THREE.Geometry();
-	geom.vertices = [
-		new THREE.Vector3(box.min.x, box.min.y, box.min.z).applyMatrix4(mesh.matrixWorld),
-		new THREE.Vector3(box.max.x, box.min.y, box.min.z).applyMatrix4(mesh.matrixWorld),
-		new THREE.Vector3(box.min.x, box.max.y, box.min.z).applyMatrix4(mesh.matrixWorld),
-		new THREE.Vector3(box.min.x, box.min.y, box.max.z).applyMatrix4(mesh.matrixWorld),
-		new THREE.Vector3(box.min.x, box.max.y, box.max.z).applyMatrix4(mesh.matrixWorld),
-		new THREE.Vector3(box.max.x, box.max.y, box.min.z).applyMatrix4(mesh.matrixWorld),
-		new THREE.Vector3(box.max.x, box.min.y, box.max.z).applyMatrix4(mesh.matrixWorld),
-		new THREE.Vector3(box.max.x, box.max.y, box.max.z).applyMatrix4(mesh.matrixWorld)
-	];
-	geom.computeBoundingBox();
-	return geom.boundingBox;
-}
-
-
 function Player(game, camera) {
 	this.game = game;
 	this.camera = camera;
@@ -162,6 +143,9 @@ function Player(game, camera) {
 		this.mesh.velocity = new THREE.Vector3(0, 0, 0);
 		this.mesh.lastPos = this.mesh.position.clone();
 		this.meshBB = new THREE.Box3();
+		this.meshBB.name = this.isLocalPlayer ? 'me' : 'opponent';
+		bulletColliders.push(this.meshBB);
+		scene.add(this.mesh);
 		this.cameraY = new THREE.Object3D();
 		this.cameraX = new THREE.Object3D();
 		this.cameraX.position.set(0, 0, 0);
@@ -295,7 +279,6 @@ function Player(game, camera) {
 			this.moveCamera();
 			this.runLaser();
 			if (this.isLocalPlayer) {
-				this.shoot();
 				this.handleKeys();
 				this.handleShoot();
 				this.hitOverlay.material.opacity -= OPACITY_RESET_RATE;
@@ -356,17 +339,25 @@ function Player(game, camera) {
 	}
 	this.runBullets = function() {
 		stats2.begin();
-		// for (var i = 0; i < BULLET_SIM_STEP; i++) {
-		this.bullets.forEach((bullet, idx) => {
-			bullet.mover.translateY(BULLET_SPEED / BULLET_SIM_STEP);
-			bullet.t += 1 / BULLET_SIM_STEP;
-			// var col = checkColl(bullet.collider, collisionMeshList)
-			if (bullet.t > BULLET_LIFE || /*(col && bullet.t > 2) ||*/ !isInBounds(bullet.mover.position)) {
-				scene.remove(bullet.mover);
-				this.bullets.splice(idx, 1);
-			}
-		});
-		// }
+		for (var i = 0; i < BULLET_SIM_STEP; i++) {
+			this.bullets.forEach((bullet, idx) => {
+				bullet.mover.translateY(BULLET_SPEED / BULLET_SIM_STEP);
+				bullet.t += 1 / BULLET_SIM_STEP;
+				var col = '';
+				bulletColliders.forEach(collider => {
+					if (collider.containsPoint(bullet.mover.position)) {
+						col = collider.name;
+					}
+				});
+				if (bullet.t > BULLET_LIFE || (col && bullet.t > 2) || !isInBounds(bullet.mover.position)) {
+					if (col == 'me') {
+						this.hit();
+					}
+					scene.remove(bullet.mover);
+					this.bullets.splice(idx, 1);
+				}
+			});
+		}
 		stats2.end();
 	}
 	this.handleKeys = function() {
@@ -394,15 +385,7 @@ function Player(game, camera) {
 		}
 	}
 	this.shoot = function() {
-		var mover = new THREE.Mesh(
-			new THREE.CylinderGeometry(BULLET_SCALE, BULLET_SCALE, BULLET_SCALE * 7, 6), new THREE.MeshBasicMaterial({
-				color: 0x00ffff,
-				wireframe: true,
-				// transparent: true,
-				// opacity: 0
-			})
-		);
-		// var mover = new THREE.Object3D();
+		var mover = new THREE.Object3D();
 		mover.position.setFromMatrixPosition(this.bullet.matrixWorld);
 		mover.rotation.setFromRotationMatrix(this.gun.matrixWorld);
 
@@ -433,21 +416,21 @@ function Player(game, camera) {
 			this.gunFlash.visible = true;
 			this.flashT = 2;
 		}
-		/*this.game.socket.emit('game_data', {
+		this.game.socket.emit('game_data', {
 			type: 'new_bullet',
 			bullet: {
 				position: {
-					x: col.position.x,
-					y: col.position.y,
-					z: col.position.z
+					x: mover.position.x,
+					y: mover.position.y,
+					z: mover.position.z
 				},
 				rotation: {
-					x: col.rotation.x,
-					y: col.rotation.y,
-					z: col.rotation.z
+					x: mover.rotation.x,
+					y: mover.rotation.y,
+					z: mover.rotation.z
 				}
 			}
-		});*/
+		});
 		this.fireT = 0;
 	}
 	this.hit = function() {
@@ -456,30 +439,21 @@ function Player(game, camera) {
 		this.hp -= BULLET_DMG;
 	}
 	this.spawnOpponetBullet = function(bullet) {
-		var col = new THREE.Mesh(
-			new THREE.CylinderGeometry(BULLET_SCALE, BULLET_SCALE, BULLET_SCALE * 7, 6),
-			new THREE.MeshBasicMaterial({
-				color: 0x00ffff,
-				wireframe: true,
-				transparent: true,
-				opacity: 0
-			})
-		);
-		col.position.set(bullet.position.x, bullet.position.y, bullet.position.z);
-		col.rotation.set(bullet.rotation.x, bullet.rotation.y, bullet.rotation.z);
+		var mover = new THREE.Object3D();
+		mover.position.set(bullet.position.x, bullet.position.y, bullet.position.z);
+		mover.rotation.set(bullet.rotation.x, bullet.rotation.y, bullet.rotation.z);
 		var newBul = this.bullet.clone();
 		newBul.position.set(0, -BULLET_SCALE * 2, 0);
 		newBul.rotation.set(Math.PI, 0, Math.PI);
 		newBul.visible = true;
-		col.add(newBul);
+		mover.add(newBul);
 
 		this.bullets.push({
-			bullet: newBul,
-			collider: col,
+			mover: mover,
 			t: 0
 		});
 
-		scene.add(col);
+		scene.add(mover);
 	}
 	this.spawn = function(sp) {
 		var pt = {

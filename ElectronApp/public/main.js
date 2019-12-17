@@ -54,7 +54,6 @@ function loadMap(map) {
 				mapG.add(cube);
 				var box3 = new THREE.Box3();
 				box3.setFromObject(cube);
-				// var helperTest = new THREE.Box3Helper();
 				bulletColliders.push(box3);
 			}
 		}
