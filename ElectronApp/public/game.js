@@ -1,8 +1,9 @@
-const PLAYER_SIZE = 0.4;
-const PLAYER_HEIGHT = 1.5
+const PLAYER_SIZE = 0.25;
+const PLAYER_HEIGHT = 1
 const PLAYER_SPEED = 0.02;
 const PLAYER_DECL = 0.85;
 const PLAYER_MAX_SPEED = 0.2;
+const CAM_HIGHT_OFFSET = 0.25
 const CTRL_ROT_OFFSET = -Math.PI / 2;
 const GRAV = -0.01;
 const JUMP_FORCE = 1;
@@ -29,9 +30,11 @@ var loadDone = false;
 var loadingObjects = 0;
 var objects = {};
 
-const lerpRates = {};
-var recoil = 0.1;
-var hRecoil = 0.03;
+const lerpRates = {
+	vRot: 0.06462320067739205
+};
+var recoil = 0.038204911092294666;
+var hRecoil = 0.02; //0.03;
 var gui;
 
 var a = 0;
@@ -93,16 +96,19 @@ function Player(game, camera) {
 			offsetX: 0.21,
 			offsetY: -0.28,
 			offsetZ: -0.42,
+			vRot: 0,
 		},
 		ads: {
 			offsetX: 0,
 			offsetY: -0.18,
 			offsetZ: -0.42,
+			vRot: 0,
 		},
 		current: {
 			offsetX: 0.21,
 			offsetY: -0.18,
 			offsetZ: -0.42,
+			vRot: 0,
 		}
 	};
 	this.gunMode = 'hip';
@@ -153,9 +159,11 @@ function Player(game, camera) {
 		this.loadGun();
 		if (this.camera) {
 			gui = new dat.GUI();
-			gui.add(window, 'a', 0, 0.2);
-			gui.add(window, 'b', 0, 0.2);
+			gui.add(window, 'a', -1, 1);
+			gui.add(window, 'b', -1, 1);
 			gui.add(window, 'c', -1, 1);
+			gui.add(lerpRates, 'vRot', 0, 0.2);
+			gui.add(window, 'recoil', 0, 0.4);
 		}
 	}
 	this.loadGun = function() {
@@ -272,6 +280,7 @@ function Player(game, camera) {
 	}
 	this.moveGun = function() {
 		this.gun.position.set(this.gunOffset.current.offsetX, this.gunOffset.current.offsetY, this.gunOffset.current.offsetZ);
+		this.gun.rotation.x = this.gunOffset.current.vRot;
 		var wanted = this.gunOffset[this.gunMode];
 		for (var i in this.gunOffset.current) {
 			this.gunOffset.current[i] = lerp(this.gunOffset.current[i], wanted[i], lerpRates[i] || DEFAULT_GUN_LERP_RATE);
@@ -281,7 +290,6 @@ function Player(game, camera) {
 		if (this.isLocalPlayer) {
 			var xDelta = (lastMouseX - mouseX) * MOUSE_SENS
 			var yDelta = (lastMouseY - mouseY) * MOUSE_SENS
-			this.cameraY.position.set(this.mesh.position.x, this.mesh.position.y, this.mesh.position.z);
 			this.cameraY.rotation.y += xDelta;
 			this.cameraX.rotation.x += yDelta;
 			this.cameraX.rotation.x = Math.max(-Math.PI / 2, Math.min(this.cameraX.rotation.x, Math.PI / 2));
@@ -289,7 +297,7 @@ function Player(game, camera) {
 		if (!ENABLE_THIRD_PERSON) {
 			this.cameraY.position.set(
 				this.mesh.position.x,
-				this.mesh.position.y + PLAYER_HEIGHT / 4,
+				this.mesh.position.y + PLAYER_HEIGHT / 4 + CAM_HIGHT_OFFSET,
 				this.mesh.position.z
 			);
 		} else {
@@ -347,8 +355,6 @@ function Player(game, camera) {
 	}
 	this.shoot = function() {
 		scene.updateMatrixWorld();
-		var vector = new THREE.Vector3();
-		vector.setFromMatrixPosition(this.bullet.matrixWorld);
 		var col = new THREE.Mesh(
 			new THREE.CylinderGeometry(BULLET_SCALE, BULLET_SCALE, BULLET_SCALE * 7, 6), new THREE.MeshBasicMaterial({
 				color: 0x00ffff,
@@ -357,12 +363,12 @@ function Player(game, camera) {
 				opacity: 0
 			})
 		);
-		col.position.set(vector.x, vector.y, vector.z)
-		col.rotation.set(this.gun.rotation.x, this.gun.rotation.y, this.gun.rotation.z)
+		col.position.setFromMatrixPosition(this.bullet.matrixWorld);
+		col.rotation.setFromRotationMatrix(this.gun.matrixWorld);
 
-		col.rotateY(this.cameraY.rotation.y + Math.PI);
-		col.rotateX(Math.PI / 2 - this.cameraX.rotation.x);
-		col.translateY(0.49);
+		col.rotateX(-Math.PI / 2)
+		col.translateY(0.5);
+
 
 		if (ENABLE_AXIS_HELPER) {
 			axisH.position.set(col.position.x, col.position.y, col.position.z);
@@ -376,21 +382,26 @@ function Player(game, camera) {
 		col.add(newBul);
 
 		this.bullets.push({
-			bullet: newBul,
+			// bullet: newBul,
 			collider: col,
 			t: 0
 		});
 		scene.add(col);
 
 		this.gunOffset.current.offsetY += hRecoil;
+		this.gunOffset.current.vRot += recoil;
 		if (ENABLE_FLASH) {
 			this.gunFlash.visible = true;
 			this.flashT = 2;
 		}
-		this.socket.emit('game_data', {
-			type: 'player_info',
-			player: this.player.getData()
-		});
+		// this.socket.emit('game_data', {
+		// 	type: 'new_bullet',
+		// 	bullet: {
+		// 		position: {
+		// 			x:
+		// 		}
+		// 	}
+		// });
 		this.fireT = 0;
 	}
 	this.hit = function() {
@@ -530,7 +541,7 @@ function Game(username) {
 				player: this.player.getData()
 			});
 			this.player.run();
-			this.opponent.run();
+			// this.opponent.run();
 		}
 	}
 	this.click = function(event) {
