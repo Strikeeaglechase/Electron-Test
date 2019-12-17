@@ -11,7 +11,7 @@ var keys = [];
 var game;
 var scene, camera, renderer, floor, mapGroup;
 var collisionMeshList = [];
-var colliders = {};
+var bulletColliders = [];
 var mouseX = 0;
 var mouseY = 0;
 var lastMouseX = 0;
@@ -19,6 +19,7 @@ var lastMouseY = 0;
 var isMousePressed = false;
 var stats;
 var lights = [];
+var colliders = [];
 
 Element.prototype.remove = function() {
 	this.parentElement.removeChild(this);
@@ -51,6 +52,10 @@ function loadMap(map) {
 				cube.receivesShadow = true;
 				collisionMeshList.push(cube);
 				mapG.add(cube);
+				var box3 = new THREE.Box3();
+				box3.setFromObject(cube);
+				// var helperTest = new THREE.Box3Helper();
+				bulletColliders.push(box3);
 			}
 		}
 	}
@@ -284,6 +289,12 @@ function animate() {
 	stats.end();
 }
 
+function handleResize() {
+	camera.aspect = window.innerWidth / window.innerHeight;
+	camera.updateProjectionMatrix();
+	renderer.setSize(window.innerWidth, window.innerHeight);
+}
+
 function keyPressed(event) {
 	keys[event.keyCode] = true;
 }
@@ -308,4 +319,5 @@ window.addEventListener('keydown', keyPressed);
 window.addEventListener('keyup', keyReleased);
 window.addEventListener("mousedown", onMouseDown);
 window.addEventListener("mouseup", onMouseUp);
+window.addEventListener('resize', handleResize);
 window.onload = startGame;
