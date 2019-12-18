@@ -304,6 +304,7 @@ function Player(game, camera) {
 			if (this.isLocalPlayer) {
 				this.handleKeys();
 				this.handleShoot();
+				this.checkDeath();
 				this.hitOverlay.material.opacity -= OPACITY_RESET_RATE;
 			}
 			if (ENABLE_FLASH) {
@@ -319,6 +320,16 @@ function Player(game, camera) {
 			this.meshBB.setFromObject(this.mesh);
 		}
 		this.fireT++;
+	}
+	this.checkDeath = function() {
+		if (this.hp < 0) {
+			textOverlay('You have died', true);
+			this.hp = 100;
+			this.game.socket.emit('game_data', {
+				type: 'death'
+			});
+			this.game.end();
+		}
 	}
 	this.moveGun = function() {
 		this.gun.position.set(this.gunOffset.current.offsetX, this.gunOffset.current.offsetY, this.gunOffset.current.offsetZ);
@@ -581,6 +592,8 @@ function Game(username) {
 				this.opponent.cameraY.rotation.y = data.player.cYRot;
 			} else if (data.type == 'new_bullet') {
 				this.player.spawnOpponetBullet(data.bullet);
+			} else if (data.type == 'death') {
+				this.end();
 			}
 		});
 		setInterval(() => {
@@ -604,6 +617,10 @@ function Game(username) {
 				this.draw();
 				break;
 		}
+	}
+	this.end = function() {
+		this.state = 'waiting';
+		this.socket.emit('enter_pool', this.username);
 	}
 	this.draw = function() {
 		if (this.player.ready) {
