@@ -11,6 +11,7 @@ const JUMP_FORCE = 1;
 const GUN_PATH = 'M4A1';
 const BULLET_PATH = '50bmg_bullet';
 const SHELL_PATH = '50bmg_shell';
+const GUNSHOT_PATH = ''
 const BULLET_SCALE = 0.015;
 const BULLET_LIFE = 200;
 const BULLET_SPEED = 1;
@@ -29,35 +30,52 @@ var ENABLE_THIRD_PERSON = false;
 var ENABLE_FLASH = false;
 
 var objectLoader;
+var soundLoader;
 var loadDone = false;
 var loadingObjects = 0;
 var objects = {};
+var sounds = {};
 
 const lerpRates = {
 	vRot: 0.06462320067739205
 };
 var recoil = 0.038204911092294666;
 var hRecoil = 0.02; //0.03;
+var listener;
+
 var gui;
 var a = 0;
 var b = 0;
 var c = 0;
 var axisH;
 
-function load(name, path) {
+function loadObj(name, path) {
 	loadingObjects++;
-	self.objectLoader.load(path + '.obj', function(object) {
+	objectLoader.load(path + '.obj', function(object) {
 		objects[name] = object;
 		loadingObjects--;
 		loadDone = loadingObjects == 0;
 	});
 }
 
+function loadSound(name, path) {
+	audioLoader.load('sounds/song.ogg', function(buffer) {
+		sound.setBuffer(buffer);
+		sound.setRefDistance(20);
+		sound.play();
+	});
+}
+
 function loadObjects() {
 	objectLoader = new THREE.OBJLoader();
 	objectLoader.setPath('./Models/');
-	load('bullet', BULLET_PATH);
-	load('gun', GUN_PATH);
+	loadObj('bullet', BULLET_PATH);
+	loadObj('gun', GUN_PATH);
+}
+
+function loadSounds() {
+	soundLoader = new THREE.AudioLoader();
+	loadSound('gunshot', GUNSHOT_PATH)
 }
 
 function lerp(v0, v1, t) {
@@ -83,6 +101,8 @@ var gui, stats2;
 var a = 0;
 var b = 0;
 var c = 0;
+
+
 
 function Player(game, camera) {
 	this.game = game;
@@ -121,6 +141,7 @@ function Player(game, camera) {
 	this.hp = 100;
 	this.flashT = 0;
 	this.fireT = 0;
+	this.gunshotSound;
 	this.ready = false;
 	this.init = async function() {
 		var geometry = new THREE.CylinderGeometry(PLAYER_SIZE, PLAYER_SIZE, PLAYER_HEIGHT, 10);
@@ -167,6 +188,7 @@ function Player(game, camera) {
 		}
 		this.cameraY.add(this.cameraX);
 		scene.add(this.cameraY);
+		this.gunshotSound = new THREE.PositionalAudio(listener);
 		await waitFor(this, 'loadDone');
 		this.loadGun();
 		if (this.camera) {
@@ -392,7 +414,6 @@ function Player(game, camera) {
 
 		mover.rotateX(-Math.PI / 2)
 		mover.translateY(0.5);
-		// mover.translateX(-0.2);
 
 		if (ENABLE_AXIS_HELPER) {
 			axisH.position.set(col.position.x, col.position.y, col.position.z);
@@ -520,6 +541,8 @@ function Game(username) {
 		this.opponent = new Player(this);
 		this.opponent.init();
 		this.ready = true;
+		listener = new THREE.AudioListener();
+		camera.add(listener);
 		this.state = 'waiting';
 	}
 	this.setupConnection = function(socket) {
