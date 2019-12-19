@@ -9,7 +9,12 @@ function initServer(ip, port) {
 	io = require("socket.io")();
 	initSocketIO();
 	server = io.listen(8000);
-	console.log('Server started');
+	console.log('Socket.io started');
+
+	express = require('express')
+	app = express()
+	app.use(express.static('../ElectronApp/public'));
+	app.listen(3000, () => console.log('Express started'));
 }
 
 function initSocketIO() {
