@@ -37,11 +37,78 @@ function k(letter) {
 	return keys[letter.toUpperCase().charCodeAt(0)];
 }
 
+const LOAD_PATHS = {
+	objects: [{
+		path: 'M4A1.obj',
+		name: 'gun'
+	}, {
+		path: '50bmg_bullet.obj',
+		name: 'bullet'
+	}, {
+		path: '50bmg_shell.obj',
+		name: 'shell'
+	}],
+	sounds: [],
+	textures: []
+}
+
+function Loader() {
+	this.objectLoader;
+	this.soundLoader;
+	this.textureLoader;
+	this.items = {
+		objects: {},
+		sounds: {},
+		textures: {}
+	}
+	this.loadCount = 0;
+	this.init = function() {
+		this.objectLoader = new THREE.OBJLoader();
+		this.objectLoader.setPath('./Models/');
+		this.soundLoader = new THREE.AudioLoader();
+	}
+	this.load = function(paths) {
+		for (var i in paths) {
+			paths[i].forEach(item => this.loadItem(item.name, item.path, i));
+		}
+		return new Promise((resolve) => {
+			setInterval(() => {
+				if (this.loadCount == 0) {
+					resolve(this.items);
+				}
+			});
+		});
+	}
+	this.loadItem = function(itemName, itemPath, catagoryName) {
+		this.loadCount++;
+		switch (catagoryName) {
+			case 'objects':
+				this.objectLoader.load(itemPath, (object) => this.saveItem(itemName, catagoryName, object));
+				break;
+			case 'sounds':
+				this.soundLoader.load(itemPath, (sound) => this.saveItem(itemName, catagoryName, sound));
+				break;
+			case 'textures':
+				this.textureLoader.load(itemPath, (texture) => this.saveItem(itemName, catagoryName, texture));
+				break;
+			default:
+				console.log('An unknown item was loaded + [' + arguments.join(', ') + ']');
+		}
+	}
+	this.saveItem = function(itemName, catagoryName, item) {
+		this.items[catagoryName][itemName] = item;
+		this.loadCount--;
+	}
+}
+
 function loadMap(map) {
 	console.log('Loading map');
 	var geometry = new THREE.BoxGeometry(MAP_CUBE_SIZE, MAP_CUBE_SIZE * 4, MAP_CUBE_SIZE, 3, 3, 3);
 	var material = new THREE.MeshLambertMaterial({
-		color: 0x515151
+		color: 0x515151,
+		map: undefined,
+		bumpMap: undefined,
+		normalMap: undefined
 	});
 	var mapG = new THREE.Group();
 	for (var i = 0; i < map.length; i++) {
@@ -181,8 +248,11 @@ function initScene() {
 	scene.add(floor);
 }
 
-function startGame(name) {
+async function startGame(name) {
 	document.getElementById('main_doc').remove();
+	loader = new Loader();
+	loader.init();
+	assets = await loader.load(LOAD_PATHS);
 	initScene();
 	loadMap(map);
 	camera.position.set(0, 5, 15);

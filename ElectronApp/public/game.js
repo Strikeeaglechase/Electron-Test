@@ -8,20 +8,6 @@ const CAM_HIGHT_OFFSET = 0.25
 const CTRL_ROT_OFFSET = -Math.PI / 2;
 const GRAV = -0.01;
 const JUMP_FORCE = 1;
-const LOAD_PATHS = {
-	objects: [{
-		path: 'M4A1.obj',
-		name: 'gun'
-	}, {
-		path: '50bmg_bullet.obj',
-		name: 'bullet'
-	}, {
-		path: '50bmg_shell.obj',
-		name: 'shell'
-	}],
-	sounds: [],
-	textures: []
-}
 const BULLET_SCALE = 0.015;
 const BULLET_LIFE = 200;
 const BULLET_SPEED = 1;
@@ -58,56 +44,6 @@ function lerp(v0, v1, t) {
 
 function isInBounds(pos) {
 	return !(pos.x < 0 || pos.y < 0 || pos.z < 0 || pos.x > MAP_WIDTH || pos.z > MAP_HEIGHT || pos.y > 20);
-}
-
-function Loader() {
-	this.objectLoader;
-	this.soundLoader;
-	this.textureLoader;
-	this.items = {
-		objects: {},
-		sounds: {},
-		textures: {}
-	}
-	this.loadCount = 0;
-	this.init = function() {
-		this.objectLoader = new THREE.OBJLoader();
-		this.objectLoader.setPath('./Models/');
-		this.soundLoader = new THREE.AudioLoader();
-	}
-	this.load = function(paths) {
-		for (var i in paths) {
-			paths[i].forEach(item => this.loadItem(item.name, item.path, i));
-		}
-		return new Promise((resolve) => {
-			setInterval(() => {
-				if (this.loadCount == 0) {
-					resolve(this.items);
-				}
-			});
-		});
-	}
-	this.loadItem = function(itemName, itemPath, catagoryName) {
-		this.loadCount++;
-		switch (catagoryName) {
-			case 'objects':
-				this.objectLoader.load(itemPath, (object) => this.saveItem(itemName, catagoryName, object));
-				break;
-			case 'sounds':
-				this.soundLoader.load(itemPath, (sound) => this.saveItem(itemName, catagoryName, sound));
-				break;
-			case 'textures':
-				this.textureLoader.load(itemPath, (texture) => this.saveItem(itemName, catagoryName, texture));
-				break;
-			default:
-				console.log('An unknown item was loaded + [' + arguments.join(', ') + ']');
-		}
-	}
-	this.saveItem = function(itemName, catagoryName, item) {
-		// console.log(this, catagoryName, itemName);
-		this.items[catagoryName][itemName] = item;
-		this.loadCount--;
-	}
 }
 
 function Player(game, camera) {
@@ -546,10 +482,6 @@ function Game(username) {
 	this.userCountMsg = undefined;
 	this.username = username;
 	this.init = async function(camera) {
-		loader = new Loader();
-		loader.init();
-		assets = await loader.load(LOAD_PATHS);
-		console.log('Assets loaded');
 		this.socket = io.connect(SERVER);
 		await this.waitForConnection(this.socket);
 		this.setupConnection(this.socket);
