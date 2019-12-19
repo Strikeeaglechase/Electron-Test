@@ -42,12 +42,12 @@ const lerpRates = {
 var recoil = 0.038204911092294666;
 var hRecoil = 0.02; //0.03;
 var listener;
-
-var gui;
+var gui, stats2;
 var a = 0;
 var b = 0;
 var c = 0;
 var axisH;
+var waitingForConnectionMsg;
 
 function loadObj(name, path) {
 	loadingObjects++;
@@ -96,13 +96,6 @@ function waitFor(obj, varName) {
 		});
 	});
 }
-
-var gui, stats2;
-var a = 0;
-var b = 0;
-var c = 0;
-
-
 
 function Player(game, camera) {
 	this.game = game;
@@ -530,7 +523,6 @@ function Player(game, camera) {
 		}
 	}
 }
-var waitingForConnectionMsg;
 
 function Game(username) {
 	this.socket;
@@ -572,9 +564,9 @@ function Game(username) {
 			this.player.spawn(data.sp);
 		});
 		socket.on('other_disconnected', () => {
-			// this.state = 'waiting';
-			// socket.emit('enter_pool', this.username);
-			// textOverlay('Your opponent disconnected', true);
+			this.state = 'waiting';
+			socket.emit('enter_pool', this.username);
+			textOverlay('Your opponent disconnected', true);
 		});
 		socket.on('game_data', data => {
 			if (data.type == 'player_info' && this.opponent) {
@@ -594,6 +586,7 @@ function Game(username) {
 			} else if (data.type == 'new_bullet') {
 				this.player.spawnOpponetBullet(data.bullet);
 			} else if (data.type == 'death') {
+				textOverlay('You win!', true);
 				this.end();
 			}
 		});
