@@ -198,6 +198,7 @@ function startGame(name) {
 	stats = new Stats();
 	stats.showPanel(0);
 	document.body.appendChild(stats.dom);
+	initEventListeners();
 	animate();
 }
 
@@ -315,9 +316,12 @@ function onMouseUp(event) {
 	}
 	this.game.click(event);
 }
-window.addEventListener('keydown', keyPressed);
-window.addEventListener('keyup', keyReleased);
-window.addEventListener("mousedown", onMouseDown);
-window.addEventListener("mouseup", onMouseUp);
-window.addEventListener('resize', handleResize);
+
+function initEventListeners() {
+	window.addEventListener('keydown', keyPressed);
+	window.addEventListener('keyup', keyReleased);
+	window.addEventListener("mousedown", onMouseDown);
+	window.addEventListener("mouseup", onMouseUp);
+	window.addEventListener('resize', handleResize);
+}
 window.onload = startGame;

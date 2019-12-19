@@ -8,10 +8,20 @@ const CAM_HIGHT_OFFSET = 0.25
 const CTRL_ROT_OFFSET = -Math.PI / 2;
 const GRAV = -0.01;
 const JUMP_FORCE = 1;
-const GUN_PATH = 'M4A1';
-const BULLET_PATH = '50bmg_bullet';
-const SHELL_PATH = '50bmg_shell';
-const GUNSHOT_PATH = ''
+const LOAD_PATHS = {
+	objects: [{
+		path: 'M4A1.obj',
+		name: 'gun'
+	}, {
+		path: '50bmg_bullet.obj',
+		name: 'bullet'
+	}, {
+		path: '50bmg_shell.obj',
+		name: 'shell'
+	}],
+	sounds: [],
+	textures: []
+}
 const BULLET_SCALE = 0.015;
 const BULLET_LIFE = 200;
 const BULLET_SPEED = 1;
@@ -29,17 +39,10 @@ var MOUSE_SENS = 0.002;
 var ENABLE_THIRD_PERSON = false;
 var ENABLE_FLASH = false;
 
-var objectLoader;
-var soundLoader;
-var loadDone = false;
-var loadingObjects = 0;
-var objects = {};
-var sounds = {};
-
 const lerpRates = {
 	vRot: 0.06462320067739205
 };
-var recoil = 0.038204911092294666;
+var recoil = 0.0382;
 var hRecoil = 0.02; //0.03;
 var listener;
 var gui, stats2;
@@ -47,36 +50,7 @@ var a = 0;
 var b = 0;
 var c = 0;
 var axisH;
-var waitingForConnectionMsg;
-
-function loadObj(name, path) {
-	loadingObjects++;
-	objectLoader.load(path + '.obj', function(object) {
-		objects[name] = object;
-		loadingObjects--;
-		loadDone = loadingObjects == 0;
-	});
-}
-
-function loadSound(name, path) {
-	audioLoader.load('sounds/song.ogg', function(buffer) {
-		sound.setBuffer(buffer);
-		sound.setRefDistance(20);
-		sound.play();
-	});
-}
-
-function loadObjects() {
-	objectLoader = new THREE.OBJLoader();
-	objectLoader.setPath('./Models/');
-	loadObj('bullet', BULLET_PATH);
-	loadObj('gun', GUN_PATH);
-}
-
-function loadSounds() {
-	soundLoader = new THREE.AudioLoader();
-	loadSound('gunshot', GUNSHOT_PATH)
-}
+var waitingForConnectionMsg, loader, assets;
 
 function lerp(v0, v1, t) {
 	return v0 * (1 - t) + v1 * t
@@ -86,15 +60,54 @@ function isInBounds(pos) {
 	return !(pos.x < 0 || pos.y < 0 || pos.z < 0 || pos.x > MAP_WIDTH || pos.z > MAP_HEIGHT || pos.y > 20);
 }
 
-function waitFor(obj, varName) {
-	return new Promise(resolve => {
-		var interv = setInterval(() => {
-			if (window[varName]) {
-				clearInterval(interv);
-				resolve();
-			}
+function Loader() {
+	this.objectLoader;
+	this.soundLoader;
+	this.textureLoader;
+	this.items = {
+		objects: {},
+		sounds: {},
+		textures: {}
+	}
+	this.loadCount = 0;
+	this.init = function() {
+		this.objectLoader = new THREE.OBJLoader();
+		this.objectLoader.setPath('./Models/');
+		this.soundLoader = new THREE.AudioLoader();
+	}
+	this.load = function(paths) {
+		for (var i in paths) {
+			paths[i].forEach(item => this.loadItem(item.name, item.path, i));
+		}
+		return new Promise((resolve) => {
+			setInterval(() => {
+				if (this.loadCount == 0) {
+					resolve(this.items);
+				}
+			});
 		});
-	});
+	}
+	this.loadItem = function(itemName, itemPath, catagoryName) {
+		this.loadCount++;
+		switch (catagoryName) {
+			case 'objects':
+				this.objectLoader.load(itemPath, (object) => this.saveItem(itemName, catagoryName, object));
+				break;
+			case 'sounds':
+				this.soundLoader.load(itemPath, (sound) => this.saveItem(itemName, catagoryName, sound));
+				break;
+			case 'textures':
+				this.textureLoader.load(itemPath, (texture) => this.saveItem(itemName, catagoryName, texture));
+				break;
+			default:
+				console.log('An unknown item was loaded + [' + arguments.join(', ') + ']');
+		}
+	}
+	this.saveItem = function(itemName, catagoryName, item) {
+		// console.log(this, catagoryName, itemName);
+		this.items[catagoryName][itemName] = item;
+		this.loadCount--;
+	}
 }
 
 function Player(game, camera) {
@@ -181,8 +194,6 @@ function Player(game, camera) {
 		}
 		this.cameraY.add(this.cameraX);
 		scene.add(this.cameraY);
-		// this.gunshotSound = new THREE.PositionalAudio(listener);
-		await waitFor(this, 'loadDone');
 		this.loadGun();
 		if (this.camera) {
 			if (ENABLE_GUI && !gui) {
@@ -194,7 +205,7 @@ function Player(game, camera) {
 		}
 	}
 	this.loadGun = function() {
-		var object = objects.gun.clone();
+		var object = assets.objects.gun.clone();
 		var group = new THREE.Group();
 		object.scale.set(GUN_SCALE, GUN_SCALE, GUN_SCALE);
 		object.children.forEach(child => {
@@ -255,7 +266,7 @@ function Player(game, camera) {
 		scene.add(group);
 		this.cameraX.add(group);
 
-		var object = objects.bullet.clone();
+		var object = assets.objects.bullet.clone();
 		object.position.set(0, 0.1, 0);
 		object.rotation.set(0, 0, 0);
 		object.children[0].material.color.set(0xffd700);
@@ -535,8 +546,11 @@ function Game(username) {
 	this.userCountMsg = undefined;
 	this.username = username;
 	this.init = async function(camera) {
+		loader = new Loader();
+		loader.init();
+		assets = await loader.load(LOAD_PATHS);
+		console.log('Assets loaded');
 		this.socket = io.connect(SERVER);
-		loadObjects();
 		await this.waitForConnection(this.socket);
 		this.setupConnection(this.socket);
 		this.id = this.socket.id;
