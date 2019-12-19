@@ -96,6 +96,5 @@ function run() {
 	}
 }
 
-
 initServer('localhost', 8000);
 setInterval(run, 1000 / 60);
