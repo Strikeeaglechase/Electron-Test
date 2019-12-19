@@ -1,6 +1,7 @@
 const TEXT_FADE_AFTER = 1000;
 const TEXT_FADE_SPEED = 500;
-const SERVER = 'http://localhost:8000';
+// const SERVER = 'http://localhost:8000';
+const SERVER = 'http://10.72.61.253:8000'
 const MAP_CUBE_SIZE = 1;
 const MAP_WIDTH = map[0].length * MAP_CUBE_SIZE;
 const MAP_HEIGHT = map.length * MAP_CUBE_SIZE;

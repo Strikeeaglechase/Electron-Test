@@ -188,7 +188,7 @@ function Player(game, camera) {
 		}
 		this.cameraY.add(this.cameraX);
 		scene.add(this.cameraY);
-		this.gunshotSound = new THREE.PositionalAudio(listener);
+		// this.gunshotSound = new THREE.PositionalAudio(listener);
 		await waitFor(this, 'loadDone');
 		this.loadGun();
 		if (this.camera) {
@@ -530,6 +530,7 @@ function Player(game, camera) {
 		}
 	}
 }
+var waitingForConnectionMsg;
 
 function Game(username) {
 	this.socket;
@@ -571,9 +572,9 @@ function Game(username) {
 			this.player.spawn(data.sp);
 		});
 		socket.on('other_disconnected', () => {
-			this.state = 'waiting';
-			socket.emit('enter_pool', this.username);
-			textOverlay('Your opponent disconnected', true);
+			// this.state = 'waiting';
+			// socket.emit('enter_pool', this.username);
+			// textOverlay('Your opponent disconnected', true);
 		});
 		socket.on('game_data', data => {
 			if (data.type == 'player_info' && this.opponent) {
@@ -601,8 +602,12 @@ function Game(username) {
 		}, 1000);
 	}
 	this.waitForConnection = function(socket) {
+		waitingForConnectionMsg = textOverlay('Waiting for connection...', false);
 		return new Promise(function(resolve, reject) {
-			socket.on('connect', resolve);
+			socket.on('connect', () => {
+				waitingForConnectionMsg.remove();
+				resolve();
+			});
 		});
 	}
 	this.run = function() {
