@@ -1,6 +1,6 @@
 const TEXT_FADE_AFTER = 1000;
 const TEXT_FADE_SPEED = 500;
-const SERVER = 'http://ssm3.us:8000';
+const SERVER = 'http://localhost:8000';
 // const SERVER = 'http://10.72.61.253:8000'
 const MAP_CUBE_SIZE = 1;
 const MAP_WIDTH = map[0].length * MAP_CUBE_SIZE;
@@ -16,6 +16,9 @@ const LOAD_PATHS = {
 	}, {
 		path: '50bmg_shell.obj',
 		name: 'shell'
+	}, {
+		path: 'roblox.obj',
+		name: 'player'
 	}],
 	sounds: [{
 		path: 'hit.mp3',
@@ -48,7 +51,7 @@ const LOAD_PATHS = {
 	}]
 }
 
-var ENABLE_LIGHTS = false;
+var ENABLE_LIGHTS = true;
 
 var keys = [];
 var game;
@@ -83,6 +86,7 @@ function Loader() {
 	this.objectLoader;
 	this.soundLoader;
 	this.textureLoader;
+	this.JSONLoader;
 	this.basePath = 'GameAssets/';
 	this.items = {
 		objects: {},
@@ -92,6 +96,7 @@ function Loader() {
 	this.loadCount = 0;
 	this.init = function() {
 		this.objectLoader = new THREE.OBJLoader();
+		this.JSONLoader = new THREE.ObjectLoader();
 		this.soundLoader = new THREE.AudioLoader();
 		this.textureLoader = new THREE.TextureLoader();
 	}
@@ -109,19 +114,25 @@ function Loader() {
 	}
 	this.loadItem = function(itemName, itemPath, catagoryName) {
 		this.loadCount++;
+		var usedLoader;
 		switch (catagoryName) {
 			case 'objects':
-				this.objectLoader.load(this.basePath + catagoryName + '/' + itemPath, (object) => this.saveItem(itemName, catagoryName, object));
+				if (itemPath.includes('.json')) {
+					usedLoader = this.JSONLoader;
+				} else {
+					usedLoader = this.objectLoader;
+				}
 				break;
 			case 'sounds':
-				this.soundLoader.load(this.basePath + catagoryName + '/' + itemPath, (sound) => this.saveItem(itemName, catagoryName, sound));
+				usedLoader = this.soundLoader;
 				break;
 			case 'textures':
-				this.textureLoader.load(this.basePath + catagoryName + '/' + itemPath, (texture) => this.saveItem(itemName, catagoryName, texture));
+				usedLoader = this.textureLoader;
 				break;
 			default:
 				console.log('An unknown item was loaded + [' + arguments.join(', ') + ']');
 		}
+		usedLoader.load(this.basePath + catagoryName + '/' + itemPath, (item) => this.saveItem(itemName, catagoryName, item));
 	}
 	this.saveItem = function(itemName, catagoryName, item) {
 		this.items[catagoryName][itemName] = item;
@@ -253,6 +264,8 @@ function loadLights() {
 	scene.add(ambiantLight, spotLight);
 }
 
+var test;
+
 function initScene() {
 	scene = new THREE.Scene();
 	camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -276,6 +289,8 @@ function initScene() {
 
 	collisionMeshList.push(floor);
 	scene.add(floor);
+	test = assets.objects.player.clone();
+	scene.add(test);
 }
 
 async function startGame(name) {
@@ -377,6 +392,9 @@ function animate() {
 	stats.begin();
 	if (game) {
 		game.run();
+		if (game && game.player && game.player.mesh) {
+			test.position.set(game.player.mesh.position.x, game.player.mesh.position.y, game.player.mesh.position.z);
+		}
 	}
 	if (ENABLE_LIGHTS && !lights.length) {
 		loadLights()

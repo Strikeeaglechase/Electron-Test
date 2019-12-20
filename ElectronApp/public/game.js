@@ -25,7 +25,6 @@ var MOUSE_SENS = 0.002;
 var ENABLE_THIRD_PERSON = false;
 var ENABLE_FLASH = false;
 var HIT_FADE_RATE = 0.1;
-
 const lerpRates = {
 	vRot: 0.0646
 };
@@ -52,6 +51,7 @@ function Player(game, camera) {
 	this.camera = camera;
 	this.isLocalPlayer = !!camera;
 	this.mesh;
+	this.playerModle;
 	this.meshBB;
 	this.gun;
 	this.gunGroup;
@@ -102,10 +102,17 @@ function Player(game, camera) {
 		} else {
 			this.mesh.name = 'opponent';
 		}
-		this.mesh.castShadow = true;
-		this.mesh.receivesShadow = true;
 		this.mesh.velocity = new THREE.Vector3(0, 0, 0);
 		this.mesh.lastPos = this.mesh.position.clone();
+
+		// this.mesh.visible = false;
+		// this.playerModle = assets.objects.player.clone();
+		// this.playerModle.position.set(0, 0, 0);
+		// this.playerModle.castShadow = true;
+		// this.playerModle.receivesShadow = true;
+		// scene.add(this.playerModle);
+		// this.mesh.add(this.playerModle);
+
 		this.meshBB = new THREE.Box3();
 		this.meshBB.name = this.isLocalPlayer ? 'me' : 'opponent';
 		bulletColliders.push(this.meshBB);
