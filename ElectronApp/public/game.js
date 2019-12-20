@@ -17,13 +17,14 @@ const GUN_SCALE = 0.04;
 const DEFAULT_GUN_LERP_RATE = 0.2;
 const ADS_SPEED_MULT = 0.7;
 const FIRE_RATE = 5;
-var OPACITY_PER_BULLET = 0.166;
-var OPACITY_RESET_RATE = 0.016;
+const OPACITY_PER_BULLET = 0.166;
+const OPACITY_RESET_RATE = 0.016;
 var ENABLE_AXIS_HELPER = false;
 var ENABLE_GUI = false;
 var MOUSE_SENS = 0.002;
 var ENABLE_THIRD_PERSON = false;
 var ENABLE_FLASH = false;
+var HIT_FADE_RATE = 0.1;
 
 const lerpRates = {
 	vRot: 0.06462320067739205
@@ -410,6 +411,9 @@ function Player(game, camera) {
 		this.hitOverlay.material.opacity = Math.max(0, this.hitOverlay.material.opacity);
 		this.hitOverlay.material.opacity += OPACITY_PER_BULLET;
 		this.hp -= BULLET_DMG;
+		this.game.socket.emit('game_data', {
+			type: 'hit'
+		});
 	}
 	this.spawnOpponetBullet = function(bullet) {
 		var mover = new THREE.Object3D();
@@ -481,6 +485,7 @@ function Game(username) {
 	this.state = 'none';
 	this.userCountMsg = undefined;
 	this.username = username;
+	this.hitmarker = document.getElementById('hitmarker');
 	this.init = async function(camera) {
 		this.socket = io.connect(SERVER);
 		await this.waitForConnection(this.socket);
@@ -534,6 +539,8 @@ function Game(username) {
 			} else if (data.type == 'death') {
 				textOverlay('You win!', true);
 				this.end();
+			} else if (data.type == 'hit') {
+				this.hitmarker.style.opacity = 1;
 			}
 		});
 		setInterval(() => {
@@ -574,6 +581,9 @@ function Game(username) {
 			});
 			this.player.run();
 			this.opponent.run();
+			if (this.hitmarker.style.opacity > 0) {
+				this.hitmarker.style.opacity -= HIT_FADE_RATE;
+			}
 		}
 	}
 	this.click = function(event) {
