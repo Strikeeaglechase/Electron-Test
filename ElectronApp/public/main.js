@@ -1,6 +1,6 @@
 const TEXT_FADE_AFTER = 1000;
 const TEXT_FADE_SPEED = 500;
-const SERVER = 'http://localhost:8000';
+const SERVER = 'http://ssm3.us:8000';
 // const SERVER = 'http://10.72.61.253:8000'
 const MAP_CUBE_SIZE = 1;
 const MAP_WIDTH = map[0].length * MAP_CUBE_SIZE;
@@ -17,7 +17,10 @@ const LOAD_PATHS = {
 		path: '50bmg_shell.obj',
 		name: 'shell'
 	}],
-	sounds: [],
+	sounds: [{
+		path: 'hit.mp3',
+		name: 'hit'
+	}],
 	textures: [{
 		path: 'Wall_alphamap.png',
 		name: 'wallAlpha'
@@ -45,7 +48,7 @@ const LOAD_PATHS = {
 	}]
 }
 
-var ENABLE_LIGHTS = true;
+var ENABLE_LIGHTS = false;
 
 var keys = [];
 var game;
@@ -129,31 +132,6 @@ function Loader() {
 function loadMap(map) {
 	console.log('Loading map');
 	var geometry = new THREE.BoxGeometry(MAP_CUBE_SIZE, MAP_CUBE_SIZE * 4, MAP_CUBE_SIZE, 3, 3, 3);
-	/*textures: [{
-		path: 'Wall_alphamap',
-		name: 'wallAlpha'
-	}, {
-		path: 'Wall_ambientocclusion',
-		name: 'wallAmb'
-	}, {
-		path: 'Wall_basecolor',
-		name: 'wallTexture'
-	}, {
-		path: 'Wall_emissive',
-		name: 'wallEm'
-	}, {
-		path: 'Wall_height',
-		name: 'wallHeight'
-	}, {
-		path: 'Wall_metallic',
-		name: 'wallMet'
-	}, {
-		path: 'Wall_normal',
-		name: 'wallNorm'
-	}, {
-		path: 'Wall_roughness',
-		name: 'wallRough'
-	}]*/
 	var material = new THREE.MeshLambertMaterial({
 		color: 0x515151,
 		map: assets.textures.wallTexture,

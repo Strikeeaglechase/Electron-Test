@@ -27,11 +27,11 @@ var ENABLE_FLASH = false;
 var HIT_FADE_RATE = 0.1;
 
 const lerpRates = {
-	vRot: 0.06462320067739205
+	vRot: 0.0646
 };
 var recoil = 0.0382;
 var hRecoil = 0.02; //0.03;
-var listener;
+
 var gui, stats2;
 var a = 0;
 var b = 0;
@@ -485,6 +485,8 @@ function Game(username) {
 	this.state = 'none';
 	this.userCountMsg = undefined;
 	this.username = username;
+	this.hitSound;
+	this.listener;
 	this.hitmarker = document.getElementById('hitmarker');
 	this.init = async function(camera) {
 		this.socket = io.connect(SERVER);
@@ -496,8 +498,12 @@ function Game(username) {
 		this.opponent = new Player(this);
 		this.opponent.init();
 		this.ready = true;
-		listener = new THREE.AudioListener();
-		camera.add(listener);
+		this.listener = new THREE.AudioListener();
+		this.hitSound = new THREE.Audio(this.listener);
+		this.hitSound.setBuffer(assets.sounds.hit);
+		this.hitSound.setLoop(false);
+		this.hitSound.setVolume(0.3);
+		camera.add(this.listener);
 		this.state = 'waiting';
 	}
 	this.setupConnection = function(socket) {
@@ -541,6 +547,10 @@ function Game(username) {
 				this.end();
 			} else if (data.type == 'hit') {
 				this.hitmarker.style.opacity = 1;
+				if (this.hitSound.isPlaying) {
+					this.hitSound.stop();
+				}
+				this.hitSound.play();
 			}
 		});
 		setInterval(() => {
