@@ -1,11 +1,50 @@
 const TEXT_FADE_AFTER = 1000;
 const TEXT_FADE_SPEED = 500;
-// const SERVER = 'http://localhost:8000';
-const SERVER = 'http://10.72.61.253:8000'
+const SERVER = 'http://localhost:8000';
+// const SERVER = 'http://10.72.61.253:8000'
 const MAP_CUBE_SIZE = 1;
 const MAP_WIDTH = map[0].length * MAP_CUBE_SIZE;
 const MAP_HEIGHT = map.length * MAP_CUBE_SIZE;
 const SIM_STEP = 1;
+const LOAD_PATHS = {
+	objects: [{
+		path: 'M4A1.obj',
+		name: 'gun'
+	}, {
+		path: '50bmg_bullet.obj',
+		name: 'bullet'
+	}, {
+		path: '50bmg_shell.obj',
+		name: 'shell'
+	}],
+	sounds: [],
+	textures: [{
+		path: 'Wall_alphamap.png',
+		name: 'wallAlpha'
+	}, {
+		path: 'Wall_ambientocclusion.png',
+		name: 'wallAmb'
+	}, {
+		path: 'Wall_basecolor.png',
+		name: 'wallTexture'
+	}, {
+		path: 'Wall_emissive.png',
+		name: 'wallEm'
+	}, {
+		path: 'Wall_height.png',
+		name: 'wallHeight'
+	}, {
+		path: 'Wall_metallic.png',
+		name: 'wallMet'
+	}, {
+		path: 'Wall_normal.png',
+		name: 'wallNorm'
+	}, {
+		path: 'Wall_roughness.png',
+		name: 'wallRough'
+	}]
+}
+
 var ENABLE_LIGHTS = true;
 
 var keys = [];
@@ -37,25 +76,11 @@ function k(letter) {
 	return keys[letter.toUpperCase().charCodeAt(0)];
 }
 
-const LOAD_PATHS = {
-	objects: [{
-		path: 'M4A1.obj',
-		name: 'gun'
-	}, {
-		path: '50bmg_bullet.obj',
-		name: 'bullet'
-	}, {
-		path: '50bmg_shell.obj',
-		name: 'shell'
-	}],
-	sounds: [],
-	textures: []
-}
-
 function Loader() {
 	this.objectLoader;
 	this.soundLoader;
 	this.textureLoader;
+	this.basePath = 'GameAssets/';
 	this.items = {
 		objects: {},
 		sounds: {},
@@ -64,8 +89,8 @@ function Loader() {
 	this.loadCount = 0;
 	this.init = function() {
 		this.objectLoader = new THREE.OBJLoader();
-		this.objectLoader.setPath('./Models/');
 		this.soundLoader = new THREE.AudioLoader();
+		this.textureLoader = new THREE.TextureLoader();
 	}
 	this.load = function(paths) {
 		for (var i in paths) {
@@ -83,13 +108,13 @@ function Loader() {
 		this.loadCount++;
 		switch (catagoryName) {
 			case 'objects':
-				this.objectLoader.load(itemPath, (object) => this.saveItem(itemName, catagoryName, object));
+				this.objectLoader.load(this.basePath + catagoryName + '/' + itemPath, (object) => this.saveItem(itemName, catagoryName, object));
 				break;
 			case 'sounds':
-				this.soundLoader.load(itemPath, (sound) => this.saveItem(itemName, catagoryName, sound));
+				this.soundLoader.load(this.basePath + catagoryName + '/' + itemPath, (sound) => this.saveItem(itemName, catagoryName, sound));
 				break;
 			case 'textures':
-				this.textureLoader.load(itemPath, (texture) => this.saveItem(itemName, catagoryName, texture));
+				this.textureLoader.load(this.basePath + catagoryName + '/' + itemPath, (texture) => this.saveItem(itemName, catagoryName, texture));
 				break;
 			default:
 				console.log('An unknown item was loaded + [' + arguments.join(', ') + ']');
@@ -104,11 +129,38 @@ function Loader() {
 function loadMap(map) {
 	console.log('Loading map');
 	var geometry = new THREE.BoxGeometry(MAP_CUBE_SIZE, MAP_CUBE_SIZE * 4, MAP_CUBE_SIZE, 3, 3, 3);
+	/*textures: [{
+		path: 'Wall_alphamap',
+		name: 'wallAlpha'
+	}, {
+		path: 'Wall_ambientocclusion',
+		name: 'wallAmb'
+	}, {
+		path: 'Wall_basecolor',
+		name: 'wallTexture'
+	}, {
+		path: 'Wall_emissive',
+		name: 'wallEm'
+	}, {
+		path: 'Wall_height',
+		name: 'wallHeight'
+	}, {
+		path: 'Wall_metallic',
+		name: 'wallMet'
+	}, {
+		path: 'Wall_normal',
+		name: 'wallNorm'
+	}, {
+		path: 'Wall_roughness',
+		name: 'wallRough'
+	}]*/
 	var material = new THREE.MeshLambertMaterial({
 		color: 0x515151,
-		map: undefined,
-		bumpMap: undefined,
-		normalMap: undefined
+		map: assets.textures.wallTexture,
+		bumpMap: assets.textures.wallHeight,
+		// normalMap: assets.textures.wallNorm,
+		aoMap: assets.textures.wallAmb,
+		alphaMap: assets.textures.wallAlpha
 	});
 	var mapG = new THREE.Group();
 	for (var i = 0; i < map.length; i++) {

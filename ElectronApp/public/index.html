@@ -49,6 +49,12 @@
 			-webkit-user-select: none;
 			color: #A0A0A0
 		}
+		.centered {
+			position: fixed;
+			top: 50%;
+			left: 50%;
+			transform: translate(-50%, -50%);
+		}
 	</style>
 	<script>
 		function startClicked() {
@@ -82,6 +88,9 @@
 			</div>
 		</div>
 	</section>
+	<!-- <div class="hit-container"> -->
+	<img src="GameAssets\hitmarker.png" style="opacity: 0;"  height="25px" id="hitmarker" class="centered">
+	<!-- </div> -->
 </body>
 
 </html>
