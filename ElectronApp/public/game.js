@@ -9,18 +9,18 @@ const CTRL_ROT_OFFSET = -Math.PI / 2;
 const GRAV = -0.01;
 const JUMP_FORCE = 1;
 const BULLET_SCALE = 0.015;
-const BULLET_LIFE = 200;
-const BULLET_SPEED = 1;
+var BULLET_LIFE = 200;
+var BULLET_SPEED = 1;
 const BULLET_DMG = 5;
-const BULLET_SIM_STEP = 2;
+const BULLET_SIM_STEP = 100;
 const GUN_SCALE = 0.04;
 const DEFAULT_GUN_LERP_RATE = 0.2;
 const ADS_SPEED_MULT = 0.7;
-const FIRE_RATE = 5;
+const FIRE_RATE = 7;
 const OPACITY_PER_BULLET = 0.166;
 const OPACITY_RESET_RATE = 0.016;
 var ENABLE_AXIS_HELPER = false;
-var ENABLE_GUI = false;
+var ENABLE_GUI = true;
 var MOUSE_SENS = 0.002;
 var ENABLE_THIRD_PERSON = false;
 var ENABLE_FLASH = false;
@@ -28,8 +28,9 @@ var HIT_FADE_RATE = 0.1;
 const lerpRates = {
 	vRot: 0.0646
 };
-var recoil = 0.0382;
-var hRecoil = 0.02; //0.03;
+var recoil = 0.025 //0.0382;
+var yRecoil = 0.01;
+var zRecoil = 0.01;
 
 var gui, stats2;
 var a = 0;
@@ -51,8 +52,8 @@ function Player(game, camera) {
 	this.camera = camera;
 	this.isLocalPlayer = !!camera;
 	this.mesh;
-	this.playerModle;
-	this.meshBB;
+	this.playerAsset;
+	this.hitboxes = [];
 	this.gun;
 	this.gunGroup;
 	this.gunFlash;
@@ -89,7 +90,9 @@ function Player(game, camera) {
 	this.init = async function() {
 		var geometry = new THREE.CylinderGeometry(PLAYER_SIZE, PLAYER_SIZE, PLAYER_HEIGHT, 10);
 		var material = new THREE.MeshLambertMaterial({
-			color: 0xB68642
+			color: 0xB68642,
+			transparent: true,
+			opacity: 0
 		});
 		this.mesh = new THREE.Mesh(geometry, material);
 		this.mesh.position.set(MAP_WIDTH / 2, PLAYER_HEIGHT, MAP_HEIGHT / 2);
@@ -106,16 +109,22 @@ function Player(game, camera) {
 		this.mesh.lastPos = this.mesh.position.clone();
 
 		// this.mesh.visible = false;
-		// this.playerModle = assets.objects.player.clone();
-		// this.playerModle.position.set(0, 0, 0);
-		// this.playerModle.castShadow = true;
-		// this.playerModle.receivesShadow = true;
-		// scene.add(this.playerModle);
-		// this.mesh.add(this.playerModle);
+		this.playerAsset = assets.objects.player.clone();
+		this.playerAsset.scale.set(0.15, 0.23, 0.15);
+		this.playerAsset.position.set(0.535, -0.5488, 0.535);
+		this.playerAsset.castShadow = true;
+		this.playerAsset.receivesShadow = true;
+		this.mesh.add(this.playerAsset);
 
-		this.meshBB = new THREE.Box3();
-		this.meshBB.name = this.isLocalPlayer ? 'me' : 'opponent';
-		bulletColliders.push(this.meshBB);
+		this.playerAsset.children.forEach(child => {
+			var newBox = new THREE.Box3();
+			newBox.name = this.isLocalPlayer ? 'me' : 'opponent';
+			this.hitboxes.push(newBox);
+			var helper = new THREE.Box3Helper(newBox, 0xffff00);
+			scene.add(helper);
+		});
+
+		bulletColliders = bulletColliders.concat(this.hitboxes);
 		collisionMeshList.push(this.mesh);
 		scene.add(this.mesh);
 		this.cameraY = new THREE.Object3D();
@@ -142,7 +151,7 @@ function Player(game, camera) {
 		if (this.camera) {
 			if (ENABLE_GUI && !gui) {
 				gui = new dat.GUI();
-				gui.add(window, 'BULLET_SIM_STEP', 0, 20, 1);
+				gui.add(window, 'BULLET_LIFE', 0, 1000);
 				gui.add(window, 'BULLET_SPEED', 0, 2, 0.01);
 				gui.add(window, 'c', -1, 1);
 			}
@@ -265,7 +274,7 @@ function Player(game, camera) {
 				axisH = new THREE.AxesHelper(1.5);
 				scene.add(axisH);
 			}
-			this.meshBB.setFromObject(this.mesh);
+			this.hitboxes.forEach((hitbox, idx) => hitbox.setFromObject(this.playerAsset.children[idx]));
 		}
 		this.fireT++;
 	}
@@ -390,8 +399,12 @@ function Player(game, camera) {
 			t: 0
 		});
 		scene.add(mover);
-
-		this.gunOffset.current.offsetY += hRecoil;
+		if (this.game.shootSound.isPlaying) {
+			this.game.shootSound.stop();
+		}
+		this.game.shootSound.play();
+		this.gunOffset.current.offsetY += yRecoil;
+		this.gunOffset.current.offsetZ += zRecoil;
 		this.gunOffset.current.vRot += recoil;
 		if (ENABLE_FLASH) {
 			this.gunFlash.visible = true;
@@ -493,6 +506,7 @@ function Game(username) {
 	this.userCountMsg = undefined;
 	this.username = username;
 	this.hitSound;
+	this.shootSound;
 	this.listener;
 	this.hitmarker = document.getElementById('hitmarker');
 	this.init = async function(camera) {
@@ -505,13 +519,21 @@ function Game(username) {
 		this.opponent = new Player(this);
 		this.opponent.init();
 		this.ready = true;
+		this.loadAudio();
+		this.state = 'waiting';
+	}
+	this.loadAudio = function() {
 		this.listener = new THREE.AudioListener();
 		this.hitSound = new THREE.Audio(this.listener);
 		this.hitSound.setBuffer(assets.sounds.hit);
 		this.hitSound.setLoop(false);
 		this.hitSound.setVolume(0.3);
+
+		this.shootSound = new THREE.Audio(this.listener);
+		this.shootSound.setBuffer(assets.sounds.gunShot);
+		this.shootSound.setLoop(false);
+		this.shootSound.setVolume(0.2);
 		camera.add(this.listener);
-		this.state = 'waiting';
 	}
 	this.setupConnection = function(socket) {
 		socket.emit('enter_pool', this.username);

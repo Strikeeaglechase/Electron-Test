@@ -2,7 +2,7 @@ const TEXT_FADE_AFTER = 1000;
 const TEXT_FADE_SPEED = 500;
 const SERVER = 'http://localhost:8000';
 // const SERVER = 'http://10.72.61.253:8000'
-const MAP_CUBE_SIZE = 1;
+const MAP_CUBE_SIZE = 1.25;
 const MAP_WIDTH = map[0].length * MAP_CUBE_SIZE;
 const MAP_HEIGHT = map.length * MAP_CUBE_SIZE;
 const SIM_STEP = 1;
@@ -18,11 +18,15 @@ const LOAD_PATHS = {
 		name: 'shell'
 	}, {
 		path: 'roblox.obj',
+		mtl: 'roblox.mtl',
 		name: 'player'
 	}],
 	sounds: [{
 		path: 'hit.mp3',
 		name: 'hit'
+	}, {
+		path: 'k_gunshot.mp3',
+		name: 'gunShot'
 	}],
 	textures: [{
 		path: 'Wall_alphamap.png',
@@ -86,7 +90,7 @@ function Loader() {
 	this.objectLoader;
 	this.soundLoader;
 	this.textureLoader;
-	this.JSONLoader;
+	this.mtlLoader;
 	this.basePath = 'GameAssets/';
 	this.items = {
 		objects: {},
@@ -96,13 +100,13 @@ function Loader() {
 	this.loadCount = 0;
 	this.init = function() {
 		this.objectLoader = new THREE.OBJLoader();
-		this.JSONLoader = new THREE.ObjectLoader();
+		this.mtlLoader = new THREE.MTLLoader();
 		this.soundLoader = new THREE.AudioLoader();
 		this.textureLoader = new THREE.TextureLoader();
 	}
 	this.load = function(paths) {
 		for (var i in paths) {
-			paths[i].forEach(item => this.loadItem(item.name, item.path, i));
+			paths[i].forEach(item => this.loadItem(item.name, item.path, i, item));
 		}
 		return new Promise((resolve) => {
 			setInterval(() => {
@@ -112,16 +116,12 @@ function Loader() {
 			});
 		});
 	}
-	this.loadItem = function(itemName, itemPath, catagoryName) {
+	this.loadItem = function(itemName, itemPath, catagoryName, loadOpts) {
 		this.loadCount++;
 		var usedLoader;
 		switch (catagoryName) {
 			case 'objects':
-				if (itemPath.includes('.json')) {
-					usedLoader = this.JSONLoader;
-				} else {
-					usedLoader = this.objectLoader;
-				}
+				usedLoader = this.objectLoader;
 				break;
 			case 'sounds':
 				usedLoader = this.soundLoader;
@@ -132,9 +132,24 @@ function Loader() {
 			default:
 				console.log('An unknown item was loaded + [' + arguments.join(', ') + ']');
 		}
-		usedLoader.load(this.basePath + catagoryName + '/' + itemPath, (item) => this.saveItem(itemName, catagoryName, item));
+		var startT = Date.now();
+		if (catagoryName == 'objects' && loadOpts.mtl) {
+			var self = this;
+			this.mtlLoader.load(this.basePath + catagoryName + '/' + loadOpts.mtl, function(materials) {
+				materials.preload();
+				var objLoader = new THREE.OBJLoader();
+				objLoader.setMaterials(materials);
+				objLoader.load(self.basePath + catagoryName + '/' + itemPath, function(object) {
+					self.saveItem(itemName, catagoryName, object, startT);
+				});
+			});
+		} else {
+			usedLoader.load(this.basePath + catagoryName + '/' + itemPath, (item) => this.saveItem(itemName, catagoryName, item, startT));
+		}
 	}
-	this.saveItem = function(itemName, catagoryName, item) {
+	this.saveItem = function(itemName, catagoryName, item, startTime) {
+		var delta = Date.now() - startTime;
+		console.log('Loaded %s in %sms', itemName, delta);
 		this.items[catagoryName][itemName] = item;
 		this.loadCount--;
 	}
@@ -143,11 +158,11 @@ function Loader() {
 function loadMap(map) {
 	console.log('Loading map');
 	var geometry = new THREE.BoxGeometry(MAP_CUBE_SIZE, MAP_CUBE_SIZE * 4, MAP_CUBE_SIZE, 3, 3, 3);
-	var material = new THREE.MeshLambertMaterial({
+	var material = new THREE.MeshPhongMaterial({
 		color: 0x515151,
 		map: assets.textures.wallTexture,
 		bumpMap: assets.textures.wallHeight,
-		// normalMap: assets.textures.wallNorm,
+		normalMap: assets.textures.wallNorm,
 		aoMap: assets.textures.wallAmb,
 		alphaMap: assets.textures.wallAlpha
 	});
@@ -156,7 +171,7 @@ function loadMap(map) {
 		for (var j = 0; j < map[i].length; j++) {
 			if (map[i][j] == 'w') {
 				cube = new THREE.Mesh(geometry, material.clone());
-				cube.position.set(j * MAP_CUBE_SIZE, 0, i * MAP_CUBE_SIZE);
+				cube.position.set(j * MAP_CUBE_SIZE, MAP_CUBE_SIZE * 2, i * MAP_CUBE_SIZE);
 				cube.castShadow = true;
 				cube.receivesShadow = true;
 				collisionMeshList.push(cube);
@@ -232,7 +247,6 @@ function createLargeGlowElm(mesh) {
 	var group = new THREE.Group();
 
 	var glowMesh = new THREEx.GeometricGlowMesh(mesh);
-	test = glowMesh;
 	glowMesh.outsideMesh.material.uniforms.coeficient.value = 0.01;
 	glowMesh.outsideMesh.material.uniforms.power.value = 3;
 	glowMesh.insideMesh.material.uniforms.glowColor.value = mesh.material.color;
@@ -264,8 +278,6 @@ function loadLights() {
 	scene.add(ambiantLight, spotLight);
 }
 
-var test;
-
 function initScene() {
 	scene = new THREE.Scene();
 	camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -280,7 +292,7 @@ function initScene() {
 		})
 	);
 	floor.rotation.x = -Math.PI / 2;
-	floor.position.set(MAP_WIDTH / 2 - MAP_CUBE_SIZE / 2, -MAP_CUBE_SIZE / 2, MAP_HEIGHT / 2 - MAP_CUBE_SIZE / 2);
+	floor.position.set(MAP_WIDTH / 2 - MAP_CUBE_SIZE / 2, 0, MAP_HEIGHT / 2 - MAP_CUBE_SIZE / 2);
 	floor.receivesShadow = true;
 	floor.name = 'floor';
 	if (ENABLE_LIGHTS) {
@@ -289,8 +301,6 @@ function initScene() {
 
 	collisionMeshList.push(floor);
 	scene.add(floor);
-	test = assets.objects.player.clone();
-	scene.add(test);
 }
 
 async function startGame(name) {
@@ -392,9 +402,6 @@ function animate() {
 	stats.begin();
 	if (game) {
 		game.run();
-		if (game && game.player && game.player.mesh) {
-			test.position.set(game.player.mesh.position.x, game.player.mesh.position.y, game.player.mesh.position.z);
-		}
 	}
 	if (ENABLE_LIGHTS && !lights.length) {
 		loadLights()
